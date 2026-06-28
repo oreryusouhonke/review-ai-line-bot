@@ -27,6 +27,9 @@ app.get("/health", (_req, res) => {
       "GEMINI_API_KEY",
       "GOOGLE_PLACES_API_KEY",
     ].filter((key) => !process.env[key]),
+    supabaseConfigured: Boolean(
+      process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+    ),
   });
 });
 
