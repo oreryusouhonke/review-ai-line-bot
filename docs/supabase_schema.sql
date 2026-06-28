@@ -5,6 +5,8 @@ create table if not exists public.users (
   line_user_id text unique not null,
   display_name text,
   nickname text,
+  ranking_enabled boolean default false,
+  public_display_name text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -18,8 +20,16 @@ create table if not exists public.review_histories (
   place_address text,
   review_text text,
   memo text,
+  category_code text,
+  category_label text,
   created_at timestamptz default now()
 );
+
+alter table public.users add column if not exists nickname text;
+alter table public.users add column if not exists ranking_enabled boolean default false;
+alter table public.users add column if not exists public_display_name text;
+alter table public.review_histories add column if not exists category_code text;
+alter table public.review_histories add column if not exists category_label text;
 
 create table if not exists public.favorites (
   id uuid primary key default gen_random_uuid(),
@@ -42,6 +52,9 @@ create index if not exists idx_review_histories_line_user_id_created_at
 
 create index if not exists idx_review_histories_user_id_created_at
   on public.review_histories(user_id, created_at desc);
+
+create index if not exists idx_review_histories_category_code
+  on public.review_histories(category_code);
 
 create index if not exists idx_favorites_user_id
   on public.favorites(user_id);

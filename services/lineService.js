@@ -136,7 +136,7 @@ async function handleGlobalCommand({ command, userId, replyToken }) {
   }
 
   if (command === "ranking") {
-    await reply(replyToken, await buildRankingMessage());
+    await reply(replyToken, await buildRankingMessage(userId));
     return;
   }
 
@@ -146,7 +146,7 @@ async function handleGlobalCommand({ command, userId, replyToken }) {
   }
 
   if (command === "badge") {
-    await reply(replyToken, await buildBadgesMessage());
+    await reply(replyToken, await buildBadgesMessage(userId));
     return;
   }
 

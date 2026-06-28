@@ -1,14 +1,6 @@
-import { getUserReviewStats } from "./historyStore.js";
+import { getMonthlyRanking, getUserReviewStats } from "./historyStore.js";
+import { getBadgeProgress, getTitle } from "./badgeDefinitions.js";
 import { getOrCreateUser } from "./userService.js";
-
-const LEVELS = [
-  { min: 0, max: 9, name: "見習い職人", nextAt: 10 },
-  { min: 10, max: 29, name: "銅職人", nextAt: 30 },
-  { min: 30, max: 99, name: "銀職人", nextAt: 100 },
-  { min: 100, max: 299, name: "金職人", nextAt: 300 },
-  { min: 300, max: 999, name: "名人", nextAt: 1000 },
-  { min: 1000, max: Infinity, name: "口コミ神", nextAt: null },
-];
 
 export async function buildMyPageMessage(lineUserId) {
   console.log("myPageService called:", { hasUserId: Boolean(lineUserId) });
@@ -19,23 +11,31 @@ export async function buildMyPageMessage(lineUserId) {
 
   await getOrCreateUser({ lineUserId });
   const stats = await getUserReviewStats(lineUserId);
+  const ranking = await getMonthlyRanking({ lineUserId, limit: 10 });
   const totalCount = stats.totalCount || 0;
   const monthCount = stats.monthCount || 0;
-  const level = getReviewLevel(totalCount);
-  const nextLine = level.nextAt
-    ? `⭐ 次のレベルまで：あと${Math.max(level.nextAt - totalCount, 0)}件`
-    : "⭐ 次のレベルまで：最高レベルです";
+  const title = getTitle(totalCount);
+  const earnedBadgeCount = getBadgeProgress(stats).filter((badge) => badge.earned).length;
+  const nextLine = title.nextAt
+    ? `⭐ 次の称号まで：あと${Math.max(title.nextAt - totalCount, 0)}件`
+    : "⭐ 次の称号まで：最高称号です";
 
   return `👤 レビュー職人マイページ
 
-🏆 レベル：${level.name}
+🏆 称号：${title.name}
 📝 累計口コミ作成：${totalCount}件
 📅 今月：${monthCount}件
 ${nextLine}
 
-※この件数はGoogleへの投稿完了数ではなく、口コミ文の作成数です。`;
-}
+🏅 獲得バッジ：${earnedBadgeCount}個
+🏆 今月ランキング：${ranking.userRank.rank}位
 
-export function getReviewLevel(totalCount) {
-  return LEVELS.find((level) => totalCount >= level.min && totalCount <= level.max) || LEVELS[0];
+メニュー：
+・履歴
+・ランキング
+・バッジ
+・お気に入り
+
+※件数はGoogle投稿数ではなく、レビュー職人で作成した口コミ文の件数です。
+※実際に利用した体験だけをもとに口コミ文を作成してください。`;
 }
