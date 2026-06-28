@@ -22,14 +22,31 @@ lineWebhookRouter.post(
 
     res.status(200).end();
 
-    const payload = JSON.parse(body);
+    let payload;
+    try {
+      payload = JSON.parse(body);
+    } catch (error) {
+      console.error("LINE webhook JSON parse failed:", error);
+      return;
+    }
+
     const events = Array.isArray(payload?.events) ? payload.events : [];
     for (const event of events) {
-      if (event.type === "message" && event.message?.type === "text") {
-        handleTextMessage(event).catch((error) => {
-          console.error("LINE event handling failed:", error);
-        });
-      }
+      if (event.type !== "message" || event.message?.type !== "text") continue;
+
+      console.log("LINE text event received:", {
+        hasUserId: Boolean(event.source?.userId),
+        hasReplyToken: Boolean(event.replyToken),
+        textPreview: safeTextPreview(event.message?.text),
+      });
+
+      handleTextMessage(event).catch((error) => {
+        console.error("LINE event handling failed:", error);
+      });
     }
   }
 );
+
+function safeTextPreview(text) {
+  return String(text || "").trim().slice(0, 40);
+}

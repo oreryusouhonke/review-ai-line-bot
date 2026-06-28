@@ -1,7 +1,10 @@
 import { Client } from "@line/bot-sdk";
 import { createReview, reviseReview } from "./aiReviewService.js";
-import { addHistory, getUserReviewStats } from "./historyStore.js";
+import { addHistory, addReviewHistory, getUserReviewStats } from "./historyStore.js";
+import { buildBadgesMessage } from "./badgeService.js";
+import { buildFavoritesMessage } from "./favoriteService.js";
 import { buildMyPageMessage } from "./myPageService.js";
+import { buildRankingMessage } from "./rankingService.js";
 import { searchPlaces } from "./placesService.js";
 import {
   clearSession,
@@ -10,52 +13,70 @@ import {
   setGenerating,
 } from "./sessionStore.js";
 
-const RESET_COMMANDS = new Set(["開始", "やり直し", "キャンセル", "リセット"]);
+const RAW_GLOBAL_COMMANDS = {
+  mypage: ["マイページ", "まいぺーじ", "ﾏｲﾍﾟｰｼﾞ", "mypage", "MyPage", "MYページ", "プロフィール"],
+  history: ["履歴", "りれき", "history"],
+  ranking: ["ランキング", "らんきんぐ", "ranking"],
+  favorite: ["お気に入り", "お気にいり", "おきにいり", "favorite", "favorites"],
+  badge: ["バッジ", "ばっじ", "badge", "badges"],
+  help: ["ヘルプ", "help", "使い方"],
+  reset: ["開始", "キャンセル", "リセット", "やり直し", "start", "reset", "cancel"],
+};
+
+const GLOBAL_COMMANDS = Object.fromEntries(
+  Object.entries(RAW_GLOBAL_COMMANDS).map(([command, aliases]) => [
+    command,
+    new Set(aliases.map(commandKey)),
+  ])
+);
 
 export async function handleTextMessage(event) {
   const userId = event.source?.userId;
   const replyToken = event.replyToken;
-  const text = normalize(event.message.text);
+  const text = normalizeText(event.message?.text);
+  const command = detectGlobalCommand(text);
 
-  if (!userId || !replyToken) return;
+  console.log("LINE text handling:", {
+    hasUserId: Boolean(userId),
+    hasReplyToken: Boolean(replyToken),
+    textPreview: text.slice(0, 40),
+    globalCommand: command || null,
+  });
 
-  if (text === "ヘルプ") {
-    await reply(replyToken, helpMessage());
-    return;
-  }
-
-  if (text === "マイページ") {
-    await reply(replyToken, await buildMyPageMessage(userId));
-    return;
-  }
-
-  if (RESET_COMMANDS.has(text)) {
-    await clearSession(userId);
-    await saveSession(userId, {
-      step: "awaiting_place_query",
-      updatedAt: new Date().toISOString(),
-    });
-    await reply(replyToken, startMessage());
+  if (!replyToken) return;
+  if (!userId) {
+    await reply(replyToken, "LINEユーザーIDを取得できなかったため、処理できませんでした。もう一度お試しください。");
     return;
   }
 
   const session = await getSession(userId);
-
-  if (!session) {
-    await saveSession(userId, {
-      step: "awaiting_place_query",
-      updatedAt: new Date().toISOString(),
-    });
-    await reply(replyToken, startMessage());
-    return;
-  }
-
-  if (session.generating) {
-    await reply(replyToken, "口コミ文を作成中です。少し待ってから送ってください。");
-    return;
-  }
+  console.log("LINE session state:", {
+    hasUserId: true,
+    sessionStep: session?.step || null,
+    generating: Boolean(session?.generating),
+    globalCommand: command || null,
+  });
 
   try {
+    if (command) {
+      await handleGlobalCommand({ command, userId, replyToken });
+      return;
+    }
+
+    if (!session) {
+      await saveSession(userId, {
+        step: "awaiting_place_query",
+        updatedAt: new Date().toISOString(),
+      });
+      await reply(replyToken, startMessage());
+      return;
+    }
+
+    if (session.generating) {
+      await reply(replyToken, "口コミ文を作成中です。少し待ってから送ってください。");
+      return;
+    }
+
     if (session.step === "awaiting_place_query") {
       await handlePlaceQuery(userId, replyToken, text);
       return;
@@ -81,6 +102,56 @@ export async function handleTextMessage(event) {
     console.error("message flow failed:", error);
     await setGenerating(userId, false);
     await reply(replyToken, `エラーが発生しました。\n${friendlyError(error)}\n\n「リセット」と送ると最初からやり直せます。`);
+  }
+}
+
+async function handleGlobalCommand({ command, userId, replyToken }) {
+  console.log("Global command matched:", { command, hasUserId: Boolean(userId) });
+
+  if (command === "mypage") {
+    console.log("Calling myPageService:", { hasUserId: Boolean(userId) });
+    await reply(replyToken, await buildMyPageMessage(userId));
+    return;
+  }
+
+  if (command === "history") {
+    const stats = await getUserReviewStats(userId);
+    await reply(replyToken, `口コミ文作成履歴
+
+累計：${stats.totalCount || 0}件
+今月：${stats.monthCount || 0}件
+
+※Googleへの投稿完了数ではなく、口コミ文の作成数です。`);
+    return;
+  }
+
+  if (command === "ranking") {
+    await reply(replyToken, await buildRankingMessage());
+    return;
+  }
+
+  if (command === "favorite") {
+    await reply(replyToken, await buildFavoritesMessage());
+    return;
+  }
+
+  if (command === "badge") {
+    await reply(replyToken, await buildBadgesMessage());
+    return;
+  }
+
+  if (command === "help") {
+    await reply(replyToken, helpMessage());
+    return;
+  }
+
+  if (command === "reset") {
+    await clearSession(userId);
+    await saveSession(userId, {
+      step: "awaiting_place_query",
+      updatedAt: new Date().toISOString(),
+    });
+    await reply(replyToken, startMessage());
   }
 }
 
@@ -120,7 +191,7 @@ async function handlePlaceSelection(userId, replyToken, text, session) {
 
   await reply(
     replyToken,
-    `「${selectedPlace.name}」ですね。\n体験内容を送ってください。\n\n例：\nハンバーグがおいしかった。\n味噌汁が具沢山。\nボリュームが多くて満足。`
+    `「${selectedPlace.name}」ですね。\n実際に体験した内容を送ってください。\n\n例：\nハンバーグがおいしかった。\n店員さんの対応が丁寧だった。\n少し待ったけど全体的に満足。`
   );
 }
 
@@ -144,8 +215,9 @@ async function handleExperience(userId, replyToken, text, session) {
     };
 
     await saveSession(userId, nextSession);
-    await addHistory({
+    await addReviewHistory({
       userId,
+      lineUserId: userId,
       place: session.selectedPlace,
       experienceMemo: text,
       review,
@@ -223,8 +295,27 @@ async function push(userId, text) {
   await client.pushMessage(userId, { type: "text", text });
 }
 
-function normalize(text) {
-  return String(text || "").trim();
+function detectGlobalCommand(text) {
+  const key = commandKey(text);
+  for (const [command, aliases] of Object.entries(GLOBAL_COMMANDS)) {
+    if (aliases.has(key)) return command;
+  }
+  return null;
+}
+
+function commandKey(text) {
+  return toFullWidthKana(String(text || ""))
+    .normalize("NFKC")
+    .replace(/[\s　]+/g, "")
+    .toLowerCase();
+}
+
+function normalizeText(text) {
+  return String(text || "").normalize("NFKC").trim();
+}
+
+function toFullWidthKana(text) {
+  return text.replace(/[\uFF61-\uFF9F]+/g, (part) => part.normalize("NFKC"));
 }
 
 function toHalfWidthNumber(text) {
@@ -238,7 +329,22 @@ function startMessage() {
 }
 
 function helpMessage() {
-  return `レビューAI公式LINE Botです。\n\nできること：\nGoogle口コミ用の文章を、あなたの実体験メモから作ります。\n\n使い方：\n1. 「開始」と送る\n2. 店名と地域を送る\n3. 候補番号を選ぶ\n4. 体験メモを送る\n5. 必要なら「修正：もっと自然に」と送る\n\nコマンド：\nマイページ / リセット\n\n自動投稿はしません。投稿前に必ずご本人が確認してください。`;
+  return `レビュー職人｜口コミ半自動化AIです。
+
+できること：
+Google口コミ用の文章を、あなたの実体験メモから作ります。
+
+使い方：
+1. 「開始」と送る
+2. 店名と地域を送る
+3. 候補番号を選ぶ
+4. 体験メモを送る
+5. 必要なら「修正：もっと自然に」と送る
+
+コマンド：
+マイページ / 履歴 / ランキング / お気に入り / バッジ / ヘルプ / リセット
+
+自動投稿はしません。投稿前に必ずご本人が確認してください。`;
 }
 
 function formatPlaces(places) {
@@ -254,19 +360,35 @@ function formatPlaces(places) {
 
 function formatReviewResult(review, place) {
   const url = `https://search.google.com/local/writereview?placeid=${encodeURIComponent(place.placeId)}`;
-  return `以下の口コミ文を作成しました。\n\n【コピー用】\n${review}\n\n文字数：${review.length}文字\n\n【投稿前チェック】\n・実際の体験に基づいていますか？\n・内容に間違いはありませんか？\n・必要なら自分の言葉に直してください。\n\nGoogleで口コミを投稿する：\n${url}\n\n修正したい場合は\n修正：もっとカジュアルに\nのように送ってください。`;
+  return `以下の口コミ文を作成しました。
+
+【コピー用】
+${review}
+
+文字数：${review.length}文字
+
+【投稿前チェック】
+・実際の体験に基づいていますか？
+・内容に間違いはありませんか？
+・必要なら自分の言葉に直してください。
+
+Googleで口コミを投稿する：
+${url}
+
+修正したい場合は
+修正：もっとカジュアルに
+のように送ってください。`;
 }
 
-function formatAchievement({ todayCount, monthCount }) {
+function formatAchievement({ totalCount, todayCount, monthCount }) {
   const nextGoal = Math.ceil(monthCount / 5) * 5 || 5;
   const remaining = Math.max(nextGoal - monthCount, 0);
-  const title = monthCount >= 10 ? "レビュー達人" : monthCount >= 5 ? "レビュー名人" : "レビュー見習い";
 
-  if (remaining === 0) {
-    return `今日は${todayCount}件目の口コミでした。\n今月${monthCount}件目の口コミです。\n${title}に到達しました。`;
-  }
+  return `累計${totalCount || 0}件目の口コミ文作成です。
+今日は${todayCount || 0}件、今月は${monthCount || 0}件です。
+${remaining > 0 ? `あと${remaining}件で今月${nextGoal}件です。` : `今月${nextGoal}件に到達しました。`}
 
-  return `今日は${todayCount}件目の口コミでした。\n今月${monthCount}件目の口コミです。\nあと${remaining}件で${nextGoal}件達成です。`;
+※これはGoogleへの投稿完了数ではなく、口コミ文の作成数です。`;
 }
 
 function friendlyError(error) {

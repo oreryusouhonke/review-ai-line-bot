@@ -3,6 +3,7 @@ import express from "express";
 import { lineWebhookRouter } from "./routes/lineWebhook.js";
 import { ensureSessionStore } from "./services/sessionStore.js";
 import { ensureHistoryStore } from "./services/historyStore.js";
+import { isSupabaseConfigured } from "./services/supabaseClient.js";
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -12,7 +13,7 @@ await ensureHistoryStore();
 
 app.get("/", (_req, res) => {
   res.json({
-    name: "レビューAI公式LINE Bot",
+    name: "レビュー職人｜口コミ半自動化AI",
     status: "ok",
     purpose: "Google口コミ用の文章作成支援。自動投稿はしません。",
   });
@@ -27,14 +28,12 @@ app.get("/health", (_req, res) => {
       "GEMINI_API_KEY",
       "GOOGLE_PLACES_API_KEY",
     ].filter((key) => !process.env[key]),
-    supabaseConfigured: Boolean(
-      process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-    ),
+    supabaseConfigured: isSupabaseConfigured(),
   });
 });
 
 app.use("/webhook/line", lineWebhookRouter);
 
 app.listen(port, () => {
-  console.log(`レビューAI公式LINE Bot is running on http://localhost:${port}`);
+  console.log(`レビュー職人｜口コミ半自動化AI is running on http://localhost:${port}`);
 });
