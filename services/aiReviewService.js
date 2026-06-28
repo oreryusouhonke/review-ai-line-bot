@@ -1,5 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+const TARGET_REVIEW_CHARS = 300;
+const MIN_REVIEW_CHARS = 240;
+const MAX_REVIEW_CHARS = 420;
+
 export async function createReview({ place, experienceMemo }) {
   return generateReview({
     place,
@@ -28,6 +32,38 @@ async function generateReview({ place, experienceMemo, currentReview = "", instr
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || "gemini-flash-lite-latest" });
+
+  const firstText = await generateText(model, {
+    place,
+    experienceMemo,
+    currentReview,
+    instruction,
+  });
+
+  if (countReviewChars(firstText) >= MIN_REVIEW_CHARS) {
+    return firstText;
+  }
+
+  console.log("Generated review was too short. Retrying with length guard:", {
+    chars: countReviewChars(firstText),
+    targetChars: TARGET_REVIEW_CHARS,
+  });
+
+  const retryText = await generateText(model, {
+    place,
+    experienceMemo,
+    currentReview: firstText,
+    instruction: `${instruction}
+
+前回の出力は${countReviewChars(firstText)}文字で短すぎました。
+同じ実体験メモだけを材料にし、嘘の体験は追加せず、${TARGET_REVIEW_CHARS}文字前後になるように詳しく整えてください。
+良かった点の理由、利用時に感じたこと、全体の感想を自然につなぎ、2〜4段落で読みやすくしてください。`,
+  });
+
+  return retryText;
+}
+
+async function generateText(model, { place, experienceMemo, currentReview, instruction }) {
   const prompt = buildPrompt({ place, experienceMemo, currentReview, instruction });
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();
@@ -54,12 +90,13 @@ ${currentReview || "なし"}
 ${instruction}
 
 文章の長さと読みやすさ:
-- 300文字前後を基準にする
-- 目安は280〜360文字
-- ただし、実体験メモが少ない場合は無理に嘘を足して300文字にしない
+- ${TARGET_REVIEW_CHARS}文字前後を基準にする
+- 目安は${MIN_REVIEW_CHARS}〜${MAX_REVIEW_CHARS}文字
 - 2〜4段落に分け、段落の間には空行を入れる
 - 1文を長くしすぎず、読みやすいところで改行する
 - 箇条書きではなく、投稿しやすい自然な口コミ本文にする
+- 体験メモにある感想について「なぜそう感じたか」「どんな点が印象に残ったか」を自然に広げる
+- ただし、実体験メモが少ない場合は無理に嘘を足して文字数を増やさない
 
 必ず守るルール:
 - ユーザーの実体験メモだけを材料にする
@@ -74,4 +111,8 @@ ${instruction}
 - 入力不足の場合も、与えられた体験メモの範囲だけで口コミ本文を完成させる
 - 出力は口コミ本文だけにする
 `.trim();
+}
+
+function countReviewChars(text) {
+  return String(text || "").replace(/\s/g, "").length;
 }
