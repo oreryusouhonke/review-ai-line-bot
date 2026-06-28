@@ -268,7 +268,7 @@ async function handleFeeling(userId, replyToken, text, session) {
     });
 
     const stats = await getUserReviewStats(userId);
-    await push(userId, `${formatReviewResult(review, session.selectedPlace)}\n\n${formatAchievement(stats)}`);
+    await pushReviewMessages(userId, review, session.selectedPlace, stats);
   } catch (error) {
     console.error("review generation failed:", error);
     await setGenerating(userId, false);
@@ -308,7 +308,7 @@ async function handleRevision(userId, replyToken, revisionRequest, session) {
       type: "revise",
     });
 
-    await push(userId, formatReviewResult(review, session.selectedPlace));
+    await pushReviewMessages(userId, review, session.selectedPlace);
   } catch (error) {
     console.error("review revision failed:", error);
     await setGenerating(userId, false);
@@ -336,6 +336,13 @@ async function push(userId, text) {
     channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
   });
   await client.pushMessage(userId, { type: "text", text });
+}
+
+async function pushReviewMessages(userId, review, place, stats = null) {
+  await push(userId, formatCopyOnlyReview(review));
+  await push(userId, stats
+    ? `${formatReviewMeta(review, place)}\n\n${formatAchievement(stats)}`
+    : formatReviewMeta(review, place));
 }
 
 function buildExperienceMemo({ purpose = "", impression = "", feeling = "" }) {
@@ -435,12 +442,16 @@ function formatPlaces(places) {
     .join("\n\n");
 }
 
-function formatReviewResult(review, place) {
-  const url = `https://search.google.com/local/writereview?placeid=${encodeURIComponent(place.placeId)}`;
-  return `以下の口コミ文を作成しました。
+function formatCopyOnlyReview(review) {
+  return `【コピー用口コミ文】
+このメッセージだけをコピーしてください。
 
-【コピー用】
-${review}
+${review}`;
+}
+
+function formatReviewMeta(review, place) {
+  const url = `https://search.google.com/local/writereview?placeid=${encodeURIComponent(place.placeId)}`;
+  return `口コミ文を作成しました。
 
 文字数：${review.length}文字
 
