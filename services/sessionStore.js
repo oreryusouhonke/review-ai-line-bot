@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, "../data");
 const SESSION_PATH = path.join(DATA_DIR, "sessions.json");
-const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const MAX_AGE_MS = 30 * 60 * 1000;
 
 export async function ensureSessionStore() {
   await fs.mkdir(DATA_DIR, { recursive: true });
