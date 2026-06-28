@@ -443,15 +443,14 @@ function formatPlaces(places) {
 }
 
 function formatCopyOnlyReview(review) {
-  return `【コピー用口コミ文】
-このメッセージだけをコピーしてください。
-
-${review}`;
+  return review;
 }
 
 function formatReviewMeta(review, place) {
   const url = `https://search.google.com/local/writereview?placeid=${encodeURIComponent(place.placeId)}`;
   return `口コミ文を作成しました。
+
+直前のメッセージがコピー用の口コミ本文です。
 
 文字数：${review.length}文字
 
