@@ -28,6 +28,7 @@ export async function getUserReviewStats(userId) {
   const userCreates = histories.filter((entry) => entry.userId === userId && entry.type === "create");
 
   return {
+    totalCount: userCreates.length,
     todayCount: userCreates.filter((entry) => toDateKey(new Date(entry.createdAt)) === todayKey).length,
     monthCount: userCreates.filter((entry) => toMonthKey(new Date(entry.createdAt)) === monthKey).length,
   };

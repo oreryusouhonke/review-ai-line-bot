@@ -1,6 +1,7 @@
 import { Client } from "@line/bot-sdk";
 import { createReview, reviseReview } from "./aiReviewService.js";
 import { addHistory, getUserReviewStats } from "./historyStore.js";
+import { buildMyPageMessage } from "./myPageService.js";
 import { searchPlaces } from "./placesService.js";
 import {
   clearSession,
@@ -20,6 +21,11 @@ export async function handleTextMessage(event) {
 
   if (text === "ヘルプ") {
     await reply(replyToken, helpMessage());
+    return;
+  }
+
+  if (text === "マイページ") {
+    await reply(replyToken, await buildMyPageMessage(userId));
     return;
   }
 
@@ -232,7 +238,7 @@ function startMessage() {
 }
 
 function helpMessage() {
-  return `レビューAI公式LINE Botです。\n\nできること：\nGoogle口コミ用の文章を、あなたの実体験メモから作ります。\n\n使い方：\n1. 「開始」と送る\n2. 店名と地域を送る\n3. 候補番号を選ぶ\n4. 体験メモを送る\n5. 必要なら「修正：もっと自然に」と送る\n\n自動投稿はしません。投稿前に必ずご本人が確認してください。`;
+  return `レビューAI公式LINE Botです。\n\nできること：\nGoogle口コミ用の文章を、あなたの実体験メモから作ります。\n\n使い方：\n1. 「開始」と送る\n2. 店名と地域を送る\n3. 候補番号を選ぶ\n4. 体験メモを送る\n5. 必要なら「修正：もっと自然に」と送る\n\nコマンド：\nマイページ / リセット\n\n自動投稿はしません。投稿前に必ずご本人が確認してください。`;
 }
 
 function formatPlaces(places) {
