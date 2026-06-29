@@ -32,6 +32,19 @@ const GLOBAL_COMMANDS = Object.fromEntries(
   ])
 );
 
+const START_MESSAGE = `レビューAIです😊
+
+口コミを作りたいお店・施設の
+「地域名」と「店名」を送ってください。
+
+【例】
+上野　〇〇商店
+銀座　〇〇医院
+池袋　〇〇美容室
+千葉　〇〇ホームセンター
+
+飲食店以外でも使えます。`;
+
 export async function handleTextMessage(event) {
   const userId = event.source?.userId;
   const replyToken = event.replyToken;
@@ -447,7 +460,7 @@ function placeSelectionGuide() {
 }
 
 function startMessage() {
-  return `レビューAIです。\n店名と地域を送ってください。\n\n例：\n匝瑳市 ブリッジ\n銀座 タイムリッチ\n茂原 福わ家`;
+  return START_MESSAGE;
 }
 
 function helpMessage() {
