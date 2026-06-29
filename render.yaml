@@ -25,6 +25,8 @@ services:
         sync: false
       - key: LINE_HARNESS_BASE_URL
         sync: false
+      - key: LINE_HARNESS_WEBHOOK_URL
+        sync: false
       - key: LINE_HARNESS_API_KEY
         sync: false
       - key: LINE_HARNESS_ACCOUNT_ID

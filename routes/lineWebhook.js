@@ -1,6 +1,7 @@
 import express from "express";
 import { validateSignature } from "@line/bot-sdk";
 import { handleTextMessage } from "../services/lineService.js";
+import { forwardLineWebhookToHarness } from "../services/lineHarnessForwarder.js";
 
 export const lineWebhookRouter = express.Router();
 
@@ -21,6 +22,10 @@ lineWebhookRouter.post(
     }
 
     res.status(200).end();
+
+    forwardLineWebhookToHarness({ rawBody: body, signature }).catch((error) => {
+      console.error("LINE Harness forwarding task failed:", error);
+    });
 
     let payload;
     try {
