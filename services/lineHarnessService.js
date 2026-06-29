@@ -105,7 +105,11 @@ async function ensureHarnessTag(tagName) {
 async function findHarnessFriendByLineUserId(lineUserId) {
   const limit = Number(process.env.LINE_HARNESS_FRIEND_LOOKUP_LIMIT || DEFAULT_LOOKUP_LIMIT);
   const response = await harnessFetch(`/api/friends?limit=${encodeURIComponent(String(limit))}&includeTags=false`);
-  const friends = Array.isArray(response?.data) ? response.data : [];
+  const friends = Array.isArray(response?.data?.items)
+    ? response.data.items
+    : Array.isArray(response?.data)
+      ? response.data
+      : [];
   return friends.find((friend) => friend?.lineUserId === lineUserId) || null;
 }
 
