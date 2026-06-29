@@ -5,8 +5,9 @@ import { buildBadgesMessage } from "./badgeService.js";
 import { buildFavoritesMessage } from "./favoriteService.js";
 import { buildMyPageMessage } from "./myPageService.js";
 import { buildRankingMessage } from "./rankingService.js";
-import { tagReviewCreatedInHarness } from "./lineHarnessService.js";
+import { syncReviewMilestonesToHarness, tagReviewCreatedInHarness } from "./lineHarnessService.js";
 import { searchPlaces } from "./placesService.js";
+import { recordReviewGenerated } from "./userService.js";
 import {
   clearSession,
   getSession,
@@ -268,8 +269,10 @@ async function handleFeeling(userId, replyToken, text, session) {
       type: "create",
     });
 
+    const userRecord = await recordReviewGenerated(userId);
     const stats = await getUserReviewStats(userId);
     tagReviewCreatedInHarness(userId);
+    syncReviewMilestonesToHarness(userId, userRecord);
     await pushReviewMessages(userId, review, session.selectedPlace, stats);
   } catch (error) {
     console.error("review generation failed:", error);

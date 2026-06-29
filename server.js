@@ -33,6 +33,7 @@ app.get("/health", (_req, res) => {
     supabaseConfigured: isSupabaseConfigured(),
     lineHarnessForwardingConfigured: isLineHarnessForwardingConfigured(),
     lineHarnessTaggingConfigured: isLineHarnessTaggingConfigured(),
+    reviewCountEnabled: true,
   });
 });
 

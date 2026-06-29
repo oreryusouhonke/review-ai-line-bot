@@ -1,6 +1,6 @@
 import { getMonthlyRanking, getUserReviewStats } from "./historyStore.js";
-import { getBadgeProgress, getTitle } from "./badgeDefinitions.js";
 import { getOrCreateUser } from "./userService.js";
+import { getEarnedMilestones, getRankProgress } from "./rankService.js";
 
 export async function buildMyPageMessage(lineUserId) {
   console.log("myPageService called:", { hasUserId: Boolean(lineUserId) });
@@ -14,21 +14,26 @@ export async function buildMyPageMessage(lineUserId) {
   const ranking = await getMonthlyRanking({ lineUserId, limit: 10 });
   const totalCount = stats.totalCount || 0;
   const monthCount = stats.monthCount || 0;
-  const title = getTitle(totalCount);
-  const earnedBadgeCount = getBadgeProgress(stats).filter((badge) => badge.earned).length;
-  const nextLine = title.nextAt
-    ? `⭐ 次の称号まで：あと${Math.max(title.nextAt - totalCount, 0)}件`
-    : "⭐ 次の称号まで：最高称号です";
+  const rankProgress = getRankProgress(totalCount);
+  const earnedMilestones = getEarnedMilestones(totalCount);
+  const nextRankLine = rankProgress.nextRank
+    ? `次のランク：${rankProgress.nextRank.name}\n次のランクまで：あと${rankProgress.remaining}回`
+    : "次のランク：最高ランク到達";
+  const badgesLine = earnedMilestones.length
+    ? earnedMilestones.map((milestone) => `・${milestone.label}`).join("\n")
+    : "・まだありません";
 
-  return `👤 レビュー職人マイページ
+  return `レビュー職人マイページ
 
-🏆 称号：${title.name}
-📝 累計口コミ作成：${totalCount}件
-📅 今月：${monthCount}件
-${nextLine}
+累計口コミ作成数：${totalCount}回
+今月の口コミ作成数：${monthCount}回
+現在ランク：${rankProgress.rank.name}
+${nextRankLine}
 
-🏅 獲得バッジ：${earnedBadgeCount}個
-🏆 今月ランキング：${ranking.userRank.rank}位
+達成バッジ：
+${badgesLine}
+
+今月ランキング：${ranking.userRank.rank}位
 
 メニュー：
 ・履歴

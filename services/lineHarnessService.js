@@ -1,3 +1,6 @@
+import { getNewMilestoneTags } from "./rankService.js";
+import { markMilestoneTagSynced, parseSyncedTags } from "./userService.js";
+
 const DEFAULT_TIMEOUT_MS = 5000;
 const DEFAULT_TAG_COLOR = "#06C755";
 const DEFAULT_LOOKUP_LIMIT = 1000;
@@ -39,6 +42,34 @@ export function tagReviewCreatedInHarness(lineUserId) {
         message: error?.message,
       });
     });
+  }
+}
+
+export function syncReviewMilestonesToHarness(lineUserId, userRecord) {
+  if (!isLineHarnessTaggingConfigured() || !userRecord) {
+    return;
+  }
+
+  const reviewCount = userRecord.review_count || 0;
+  const syncedTags = parseSyncedTags(userRecord.milestone_tags_synced);
+  const tagNames = getNewMilestoneTags(reviewCount, syncedTags);
+
+  for (const tagName of tagNames) {
+    addTagToHarness(lineUserId, tagName)
+      .then((result) => {
+        if (result?.ok) {
+          return markMilestoneTagSynced(lineUserId, tagName);
+        }
+        return null;
+      })
+      .catch((error) => {
+        console.warn("LINE Harness milestone tag sync failed:", {
+          tagName,
+          reviewCount,
+          hasLineUserId: Boolean(lineUserId),
+          message: error?.message,
+        });
+      });
   }
 }
 

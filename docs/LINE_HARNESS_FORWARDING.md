@@ -65,3 +65,56 @@ POST /api/friends/:id/tags
 ```
 
 LINE Harness OSSには現時点で `lineUserId` から友だちを1件取得する専用APIがないため、友だち一覧から `lineUserId` が一致する行を探しています。友だち数が増えたら、Harness側に `GET /api/friends/by-line-user-id/:lineUserId` のようなAPIを追加するのが安全です。
+
+## 利用回数・ランク・達成タグ
+
+口コミ文の新規生成が完了して `review_histories` に保存された後、Supabase `users` に以下を同期します。
+
+```text
+review_count
+last_review_generated_at
+rank
+milestone_tags_synced
+```
+
+ランク条件:
+
+```text
+0-4回: 見習い職人
+5-19回: レビュー職人
+20-49回: 上級職人
+50-99回: 師範
+100-299回: 名人
+300-999回: 家元
+1000回以上: 伝説の職人
+```
+
+達成時にLINE Harnessへ同期するタグ:
+
+```text
+レビュー職人_初回利用
+レビュー職人_5回達成
+レビュー職人_10回達成
+レビュー職人_20回達成
+レビュー職人_50回達成
+レビュー職人_100回達成
+レビュー職人_300回達成
+レビュー職人_1000回達成
+```
+
+同期済みタグは `users.milestone_tags_synced` に保存し、同じ達成タグを何度も付けないようにします。タグ付け失敗時は口コミ生成やLINE返信を止めません。
+
+将来のジャンルタグ設計:
+
+```text
+ジャンル_飲食店
+ジャンル_美容院
+ジャンル_ホームセンター
+ジャンル_病院
+ジャンル_ホテル
+ジャンル_スーパー
+ジャンル_観光地
+ジャンル_その他
+```
+
+ジャンル自動判定は今後、Google PlacesのtypesやprimaryType、review_histories.category_codeをもとに追加します。

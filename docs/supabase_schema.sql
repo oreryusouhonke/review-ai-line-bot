@@ -7,6 +7,10 @@ create table if not exists public.users (
   nickname text,
   ranking_enabled boolean default false,
   public_display_name text,
+  review_count integer default 0,
+  last_review_generated_at timestamptz,
+  rank text default '見習い職人',
+  milestone_tags_synced jsonb default '[]'::jsonb,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -28,6 +32,10 @@ create table if not exists public.review_histories (
 alter table public.users add column if not exists nickname text;
 alter table public.users add column if not exists ranking_enabled boolean default false;
 alter table public.users add column if not exists public_display_name text;
+alter table public.users add column if not exists review_count integer default 0;
+alter table public.users add column if not exists last_review_generated_at timestamptz;
+alter table public.users add column if not exists rank text default '見習い職人';
+alter table public.users add column if not exists milestone_tags_synced jsonb default '[]'::jsonb;
 alter table public.review_histories add column if not exists category_code text;
 alter table public.review_histories add column if not exists category_label text;
 
@@ -56,8 +64,38 @@ create index if not exists idx_review_histories_user_id_created_at
 create index if not exists idx_review_histories_category_code
   on public.review_histories(category_code);
 
+create index if not exists idx_users_review_count
+  on public.users(review_count desc);
+
+create index if not exists idx_users_last_review_generated_at
+  on public.users(last_review_generated_at desc);
+
 create index if not exists idx_favorites_user_id
   on public.favorites(user_id);
 
 create index if not exists idx_user_badges_user_id
   on public.user_badges(user_id);
+
+update public.users u
+set
+  review_count = coalesce(src.review_count, 0),
+  last_review_generated_at = src.last_review_generated_at,
+  rank = case
+    when coalesce(src.review_count, 0) >= 1000 then '伝説の職人'
+    when coalesce(src.review_count, 0) >= 300 then '家元'
+    when coalesce(src.review_count, 0) >= 100 then '名人'
+    when coalesce(src.review_count, 0) >= 50 then '師範'
+    when coalesce(src.review_count, 0) >= 20 then '上級職人'
+    when coalesce(src.review_count, 0) >= 5 then 'レビュー職人'
+    else '見習い職人'
+  end,
+  updated_at = now()
+from (
+  select
+    line_user_id,
+    count(*)::integer as review_count,
+    max(created_at) as last_review_generated_at
+  from public.review_histories
+  group by line_user_id
+) src
+where u.line_user_id = src.line_user_id;
