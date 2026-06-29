@@ -181,16 +181,22 @@ async function handlePlaceQuery(userId, replyToken, query) {
     updatedAt: new Date().toISOString(),
   });
 
-  await reply(replyToken, `候補が見つかりました。\n番号で選んでください。\n\n${formatPlaces(places)}`);
+  await reply(replyToken, `候補が見つかりました。\n\n${formatPlaces(places)}\n\n${placeSelectionGuide()}`);
 }
 
 async function handlePlaceSelection(userId, replyToken, text, session) {
-  const index = Number(toHalfWidthNumber(text)) - 1;
+  const selectionNumber = parsePlaceSelectionNumber(text);
+  if (selectionNumber === null) {
+    await handlePlaceQuery(userId, replyToken, text);
+    return;
+  }
+
+  const index = selectionNumber - 1;
   const candidates = Array.isArray(session.candidates) ? session.candidates : [];
   const selectedPlace = candidates[index];
 
   if (!selectedPlace) {
-    await reply(replyToken, "候補の番号を 1 から 5 の数字で送ってください。");
+    await reply(replyToken, placeSelectionGuide());
     return;
   }
 
@@ -412,6 +418,32 @@ function toHalfWidthNumber(text) {
   return String(text).replace(/[０-９]/g, (char) =>
     String.fromCharCode(char.charCodeAt(0) - 0xfee0)
   );
+}
+
+function parsePlaceSelectionNumber(text) {
+  const normalized = String(text || "").normalize("NFKC").trim();
+  if (/^[1-5]$/.test(normalized)) {
+    return Number(normalized);
+  }
+  return /^\d+$/.test(normalized) ? Number(normalized) : null;
+}
+
+function placeSelectionGuide() {
+  return `候補の番号（1〜5）を送ってください😊
+
+候補にない場合は、お店や施設名をそのまま入力してください。
+
+レビュー職人は飲食店だけではなく、Googleマップに掲載されている施設ならご利用いただけます。
+
+【例】
+🍜 飲食店
+💇 美容院・理容室
+🏥 病院・歯科医院
+🛒 スーパー・ホームセンター
+🏨 ホテル・旅館
+🏞️ 観光施設
+⛽ ガソリンスタンド
+🚗 カーディーラー`;
 }
 
 function startMessage() {
