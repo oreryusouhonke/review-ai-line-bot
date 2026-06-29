@@ -5,6 +5,7 @@ import { buildBadgesMessage } from "./badgeService.js";
 import { buildFavoritesMessage } from "./favoriteService.js";
 import { buildMyPageMessage } from "./myPageService.js";
 import { buildRankingMessage } from "./rankingService.js";
+import { tagReviewCreatedInHarness } from "./lineHarnessService.js";
 import { searchPlaces } from "./placesService.js";
 import {
   clearSession,
@@ -268,6 +269,7 @@ async function handleFeeling(userId, replyToken, text, session) {
     });
 
     const stats = await getUserReviewStats(userId);
+    tagReviewCreatedInHarness(userId);
     await pushReviewMessages(userId, review, session.selectedPlace, stats);
   } catch (error) {
     console.error("review generation failed:", error);
@@ -308,6 +310,7 @@ async function handleRevision(userId, replyToken, revisionRequest, session) {
       type: "revise",
     });
 
+    tagReviewCreatedInHarness(userId);
     await pushReviewMessages(userId, review, session.selectedPlace);
   } catch (error) {
     console.error("review revision failed:", error);

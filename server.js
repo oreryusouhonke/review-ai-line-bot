@@ -5,6 +5,7 @@ import { ensureSessionStore } from "./services/sessionStore.js";
 import { ensureHistoryStore } from "./services/historyStore.js";
 import { isSupabaseConfigured } from "./services/supabaseClient.js";
 import { isLineHarnessForwardingConfigured } from "./services/lineHarnessForwarder.js";
+import { isLineHarnessTaggingConfigured } from "./services/lineHarnessService.js";
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -31,6 +32,7 @@ app.get("/health", (_req, res) => {
     ].filter((key) => !process.env[key]),
     supabaseConfigured: isSupabaseConfigured(),
     lineHarnessForwardingConfigured: isLineHarnessForwardingConfigured(),
+    lineHarnessTaggingConfigured: isLineHarnessTaggingConfigured(),
   });
 });
 

@@ -37,3 +37,31 @@ LINE公式アカウント
 - LINE Harness側で自動返信やシナリオ返信を有効にすると、レビュー職人と二重返信になる可能性があります。
 - CRM登録だけを目的にする場合は、LINE Harness側の自動返信を無効にして確認してください。
 - `/health` の `lineHarnessForwardingConfigured` が `true` なら転送先URLが設定されています。
+
+## 口コミ生成完了時のタグ付け
+
+レビュー職人で口コミ文の生成または修正が完了したら、LINE Harness側の友だちに以下のタグを付けます。
+
+- `口コミ作成_完了`
+- `口コミ下書き生成済み`
+- `Google投稿案内済み`
+
+Renderには以下も設定してください。
+
+```text
+LINE_HARNESS_API_KEY=<LINE HarnessのAPIキー>
+LINE_HARNESS_FRIEND_LOOKUP_LIMIT=1000
+```
+
+`LINE_HARNESS_WEBHOOK_URL` または `LINE_HARNESS_BASE_URL` と、`LINE_HARNESS_API_KEY` の両方が設定されると、`/health` の `lineHarnessTaggingConfigured` が `true` になります。
+
+内部ではLINE Harnessの既存APIを使います。
+
+```text
+GET  /api/tags
+POST /api/tags
+GET  /api/friends?limit=1000&includeTags=false
+POST /api/friends/:id/tags
+```
+
+LINE Harness OSSには現時点で `lineUserId` から友だちを1件取得する専用APIがないため、友だち一覧から `lineUserId` が一致する行を探しています。友だち数が増えたら、Harness側に `GET /api/friends/by-line-user-id/:lineUserId` のようなAPIを追加するのが安全です。
