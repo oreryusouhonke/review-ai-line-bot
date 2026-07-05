@@ -2,15 +2,37 @@ import { getMonthlyRanking, getUserReviewStats } from "./historyStore.js";
 import { getOrCreateUser } from "./userService.js";
 import { getEarnedMilestones, getRankProgress } from "./rankService.js";
 
-// ランクごとの称号カラーと紋章
+// ランクごとの称号カラー・紋章・カード配色
+// bg: カード背景 / panel: 区切り線やバー土台 / text: メイン文字 / sub: 補助文字
 const RANK_STYLES = {
-  "見習い職人": { color: "#9ca3af", emblem: "🔰" },
-  "レビュー職人": { color: "#f97316", emblem: "⚒️" },
-  "上級職人": { color: "#3b82f6", emblem: "🛠️" },
-  "師範": { color: "#8b5cf6", emblem: "🎖️" },
-  "名人": { color: "#ec4899", emblem: "🏅" },
-  "家元": { color: "#eab308", emblem: "👑" },
-  "伝説の職人": { color: "#ffd700", emblem: "🏆" },
+  "見習い職人": {
+    color: "#9ca3af", emblem: "🔰",
+    bg: "#111827", panel: "#374151", text: "#ffffff", sub: "#9ca3af", button: "#374151",
+  },
+  "レビュー職人": {
+    color: "#f97316", emblem: "⚒️",
+    bg: "#111827", panel: "#374151", text: "#ffffff", sub: "#9ca3af", button: "#374151",
+  },
+  "上級職人": {
+    color: "#60a5fa", emblem: "🛠️",
+    bg: "#0f1a2e", panel: "#1e3a5f", text: "#ffffff", sub: "#93b4d4", button: "#1e3a5f",
+  },
+  "師範": {
+    color: "#c4b5fd", emblem: "🎖️",
+    bg: "#1e1033", panel: "#3b2764", text: "#ffffff", sub: "#b3a2d4", button: "#3b2764",
+  },
+  "名人": {
+    color: "#f9a8d4", emblem: "🏅",
+    bg: "#2d0f22", panel: "#5c2447", text: "#ffffff", sub: "#d4a2c0", button: "#5c2447",
+  },
+  "家元": {
+    color: "#fbbf24", emblem: "👑",
+    bg: "#291d05", panel: "#57430f", text: "#ffffff", sub: "#cdb377", button: "#57430f",
+  },
+  "伝説の職人": {
+    color: "#7c5c00", emblem: "🏆",
+    bg: "#f5d97a", panel: "#d4af37", text: "#3a2e00", sub: "#7c6a1e", button: "#b8952e",
+  },
 };
 
 export async function buildMyPageFlex(lineUserId) {
@@ -37,7 +59,7 @@ export async function buildMyPageFlex(lineUserId) {
     type: "text",
     text: `🎖 ${milestone.label}`,
     size: "xs",
-    color: "#d1d5db",
+    color: style.sub,
     flex: 0,
   }));
 
@@ -46,14 +68,14 @@ export async function buildMyPageFlex(lineUserId) {
     layout: "vertical",
     flex: 1,
     contents: [
-      { type: "text", text: label, size: "xxs", color: "#9ca3af", align: "center" },
+      { type: "text", text: label, size: "xxs", color: style.sub, align: "center" },
       {
         type: "box",
         layout: "baseline",
         justifyContent: "center",
         contents: [
-          { type: "text", text: String(value), size: "xl", weight: "bold", color: "#ffffff", flex: 0 },
-          { type: "text", text: unit, size: "xxs", color: "#9ca3af", flex: 0, margin: "xs" },
+          { type: "text", text: String(value), size: "xl", weight: "bold", color: style.text, flex: 0 },
+          { type: "text", text: unit, size: "xxs", color: style.sub, flex: 0, margin: "xs" },
         ],
       },
     ],
@@ -63,7 +85,7 @@ export async function buildMyPageFlex(lineUserId) {
     type: "button",
     style: "secondary",
     height: "sm",
-    color: "#374151",
+    color: style.button,
     flex: 1,
     action: { type: "message", label, text },
   });
@@ -71,7 +93,7 @@ export async function buildMyPageFlex(lineUserId) {
   const contents = {
     type: "bubble",
     size: "mega",
-    styles: { body: { backgroundColor: "#111827" }, footer: { backgroundColor: "#111827" } },
+    styles: { body: { backgroundColor: style.bg }, footer: { backgroundColor: style.bg } },
     body: {
       type: "box",
       layout: "vertical",
@@ -83,7 +105,7 @@ export async function buildMyPageFlex(lineUserId) {
           layout: "horizontal",
           contents: [
             { type: "text", text: "REVIEW SHOKUNIN", size: "xxs", color: style.color, weight: "bold", flex: 1 },
-            { type: "text", text: "MEMBER'S CARD", size: "xxs", color: "#6b7280", align: "end", flex: 1 },
+            { type: "text", text: "MEMBER'S CARD", size: "xxs", color: style.sub, align: "end", flex: 1 },
           ],
         },
         {
@@ -99,7 +121,7 @@ export async function buildMyPageFlex(lineUserId) {
                 ? `次の称号「${rankProgress.nextRank.name}」まで あと${rankProgress.remaining}回`
                 : "最高ランク到達おめでとうございます",
               size: "xs",
-              color: "#9ca3af",
+              color: style.sub,
               align: "center",
               margin: "sm",
               wrap: true,
@@ -110,7 +132,7 @@ export async function buildMyPageFlex(lineUserId) {
           type: "box",
           layout: "vertical",
           height: "6px",
-          backgroundColor: "#374151",
+          backgroundColor: style.panel,
           cornerRadius: "3px",
           margin: "md",
           contents: [
@@ -125,7 +147,7 @@ export async function buildMyPageFlex(lineUserId) {
             },
           ],
         },
-        { type: "separator", margin: "lg", color: "#374151" },
+        { type: "separator", margin: "lg", color: style.panel },
         {
           type: "box",
           layout: "horizontal",
@@ -138,14 +160,14 @@ export async function buildMyPageFlex(lineUserId) {
         },
         ...(badgeChips.length
           ? [
-              { type: "separator", margin: "lg", color: "#374151" },
+              { type: "separator", margin: "lg", color: style.panel },
               {
                 type: "box",
                 layout: "vertical",
                 margin: "lg",
                 spacing: "xs",
                 contents: [
-                  { type: "text", text: "達成バッジ", size: "xxs", color: "#9ca3af" },
+                  { type: "text", text: "達成バッジ", size: "xxs", color: style.sub },
                   ...badgeChips,
                 ],
               },
@@ -175,7 +197,7 @@ export async function buildMyPageFlex(lineUserId) {
           type: "text",
           text: "※件数はGoogle投稿数ではなく、作成した口コミ文の件数です",
           size: "xxs",
-          color: "#6b7280",
+          color: style.sub,
           wrap: true,
           margin: "sm",
         },

@@ -1,10 +1,11 @@
 const TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
 
 const CATEGORY_RULES = [
-  { code: "ramen", label: "ラーメン", keywords: ["ramen", "japanese_restaurant"] },
+  { code: "ramen", label: "ラーメン", keywords: ["ramen"] },
   { code: "cafe", label: "カフェ", keywords: ["cafe", "coffee_shop"] },
   { code: "curry", label: "カレー", keywords: ["indian_restaurant"] },
   { code: "sushi", label: "寿司", keywords: ["sushi_restaurant"] },
+  { code: "washoku", label: "和食", keywords: ["japanese_restaurant"] },
   { code: "sweets", label: "スイーツ", keywords: ["bakery", "dessert_shop", "ice_cream_shop"] },
   { code: "izakaya", label: "居酒屋", keywords: ["bar", "pub", "japanese_izakaya_restaurant"] },
   { code: "hotel", label: "宿泊", keywords: ["hotel", "lodging", "inn", "resort_hotel"] },

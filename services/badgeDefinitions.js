@@ -1,21 +1,12 @@
-export const TITLE_LEVELS = [
-  { min: 0, max: 9, name: "見習い職人", nextAt: 10 },
-  { min: 10, max: 29, name: "銅職人", nextAt: 30 },
-  { min: 30, max: 99, name: "銀職人", nextAt: 100 },
-  { min: 100, max: 299, name: "金職人", nextAt: 300 },
-  { min: 300, max: 499, name: "名人", nextAt: 500 },
-  { min: 500, max: 999, name: "口コミ仙人", nextAt: 1000 },
-  { min: 1000, max: Infinity, name: "口コミ神", nextAt: null },
-];
-
+// 称号（ランク）は rankService.js の RANKS に統一。ここではバッジだけを定義する。
 export const TOTAL_BADGES = [
   { code: "total_1", label: "🏅 はじめの一歩", threshold: 1 },
-  { code: "total_10", label: "📝 口コミ職人見習い", threshold: 10 },
+  { code: "total_10", label: "📝 見習いの筆", threshold: 10 },
   { code: "total_30", label: "🥉 銅の筆", threshold: 30 },
   { code: "total_100", label: "🥈 銀の筆", threshold: 100 },
   { code: "total_300", label: "🥇 金の筆", threshold: 300 },
-  { code: "total_500", label: "👑 レビュー職人", threshold: 500 },
-  { code: "total_1000", label: "🐉 口コミ神", threshold: 1000 },
+  { code: "total_500", label: "👑 匠の筆", threshold: 500 },
+  { code: "total_1000", label: "🐉 伝説の筆", threshold: 1000 },
 ];
 
 export const MONTHLY_BADGES = [
@@ -29,6 +20,7 @@ export const CATEGORY_BADGES = [
   category("cafe", [["☕ カフェ好き", 5], ["☕ カフェ巡礼者", 10], ["☕ カフェ仙人", 30]]),
   category("curry", [["🍛 カレー好き", 5], ["🍛 カレー王", 10], ["🍛 カレー仙人", 30]]),
   category("sushi", [["🍣 寿司好き", 5], ["🍣 寿司通", 10], ["🍣 寿司仙人", 30]]),
+  category("washoku", [["🍱 和食好き", 5], ["🍱 和食通", 10], ["🍱 和食仙人", 30]]),
   category("sweets", [["🍰 スイーツ好き", 5], ["🍰 スイーツ職人", 10], ["🍰 スイーツ仙人", 30]]),
   category("izakaya", [["🍺 居酒屋好き", 5], ["🍺 居酒屋番長", 10], ["🍺 居酒屋仙人", 30]]),
   category("hotel", [["🏨 旅好き", 5], ["🏨 旅の職人", 10], ["🏨 旅の仙人", 30]]),
@@ -39,10 +31,6 @@ export const CATEGORY_BADGES = [
   category("learning", [["🎓 学び好き", 5], ["🎓 学びの職人", 10], ["🎓 学びの仙人", 30]]),
   category("car_transport", [["🚗 ドライブ好き", 5], ["🚗 ドライブ職人", 10], ["🚗 ドライブ仙人", 30]]),
 ].flat();
-
-export function getTitle(totalCount) {
-  return TITLE_LEVELS.find((level) => totalCount >= level.min && totalCount <= level.max) || TITLE_LEVELS[0];
-}
 
 export function getBadgeProgress(stats) {
   const totalCount = stats.totalCount || 0;
