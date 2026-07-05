@@ -7,6 +7,7 @@ import { buildMyPageFlex, buildMyPageMessage } from "./myPageService.js";
 import { buildRankingMessage } from "./rankingService.js";
 import { syncReviewMilestonesToHarness, tagReviewCreatedInHarness } from "./lineHarnessService.js";
 import { searchPlaces } from "./placesService.js";
+import { buildRecruitCarousel, fetchRecruitListings, recruitGuideText } from "./recruitBoardService.js";
 import { recordReviewGenerated } from "./userService.js";
 import { checkGenerationAccess } from "./billingService.js";
 import {
@@ -74,6 +75,13 @@ export async function handleTextMessage(event) {
   });
 
   try {
+    // 募集店ボード（「募集店」「募集店　千葉」のように地域指定も可能）
+    const recruitMatch = text.match(/^募集店[\s　]*(.*)$/);
+    if (recruitMatch) {
+      await handleRecruitBoard(userId, replyToken, recruitMatch[1].trim());
+      return;
+    }
+
     if (command) {
       await handleGlobalCommand({ command, userId, replyToken });
       return;
@@ -95,6 +103,11 @@ export async function handleTextMessage(event) {
 
     if (session.step === "awaiting_place_query") {
       await handlePlaceQuery(userId, replyToken, text);
+      return;
+    }
+
+    if (session.step === "awaiting_recruit_selection") {
+      await handleRecruitSelection(userId, replyToken, text, session);
       return;
     }
 
@@ -202,6 +215,70 @@ async function handlePlaceQuery(userId, replyToken, query) {
   });
 
   await reply(replyToken, `候補が見つかりました。\n\n${formatPlaces(places)}\n\n${placeSelectionGuide()}`);
+}
+
+async function handleRecruitBoard(userId, replyToken, region) {
+  let listings = [];
+  try {
+    listings = await fetchRecruitListings(region);
+  } catch (error) {
+    console.error("recruit board fetch failed:", error);
+    await reply(replyToken, "募集店ボードを読み込めませんでした。少し待ってからもう一度お試しください。");
+    return;
+  }
+
+  if (!listings.length) {
+    await reply(
+      replyToken,
+      region
+        ? `「${region}」の募集店は今のところありません。\n「募集店」と送ると全国の一覧を見られます。`
+        : "現在、募集店の掲載はありません。掲載が始まるとここに表示されます。"
+    );
+    return;
+  }
+
+  await saveSession(userId, {
+    step: "awaiting_recruit_selection",
+    recruitCandidates: listings,
+    updatedAt: new Date().toISOString(),
+  });
+
+  await push(userId, recruitGuideText());
+  await replyFlex(replyToken, "募集店ボード", buildRecruitCarousel(listings));
+}
+
+async function handleRecruitSelection(userId, replyToken, text, session) {
+  const selectionNumber = parsePlaceSelectionNumber(text);
+  const candidates = Array.isArray(session.recruitCandidates) ? session.recruitCandidates : [];
+  const listing = selectionNumber === null ? null : candidates[selectionNumber - 1];
+
+  if (!listing) {
+    // 番号以外が来たら通常の店探しとして扱う
+    await saveSession(userId, {
+      step: "awaiting_place_query",
+      updatedAt: new Date().toISOString(),
+    });
+    await handlePlaceQuery(userId, replyToken, text);
+    return;
+  }
+
+  const selectedPlace = {
+    placeId: listing.placeId || "",
+    name: listing.storeName || "お店",
+    address: listing.region || "",
+    categoryCode: "other",
+    categoryLabel: "その他",
+    fromRecruit: true,
+  };
+
+  await saveSession(userId, {
+    step: "awaiting_visit_purpose",
+    selectedPlace,
+    reviewAnswers: {},
+    updatedAt: new Date().toISOString(),
+  });
+
+  await reply(replyToken, firstQuestionMessage(selectedPlace));
 }
 
 async function handlePlaceSelection(userId, replyToken, text, session) {
@@ -520,6 +597,12 @@ function buildManualCarousel() {
       body: "できた文章を直したいときは\n\n「修正：もっとカジュアルに」\n「修正：短くして」\n\nのように送ると作り直せます。",
     },
     {
+      step: "募集店",
+      title: "お店の募集を見る",
+      body: "「募集店」と送ると、体験とご意見を歓迎しているお店の一覧が見られます。\n\n気になるお店に行って、そのまま口コミ文を作成できます。\n\n地域で絞るには「募集店　千葉」のように送ってください。",
+      action: { type: "message", label: "募集店を見る", text: "募集店" },
+    },
+    {
       step: "お楽しみ①",
       title: "称号ランク",
       body: "口コミ文を作るほど称号が上がります。\n\n🔰 見習い職人（0回〜）\n⚒️ レビュー職人（5回〜）\n🛠️ 上級職人（20回〜）\n🎖️ 師範（50回〜）\n🏅 名人（100回〜）\n👑 家元（300回〜）\n🏆 伝説の職人（1000回〜）",
@@ -642,15 +725,14 @@ function formatCopyOnlyReview(review) {
 }
 
 function formatReviewMeta(review, place) {
-  const url = `https://search.google.com/local/writereview?placeid=${encodeURIComponent(place.placeId)}`;
+  const googleSection = place?.placeId
+    ? `\n\nGoogleで口コミを投稿する：\nhttps://search.google.com/local/writereview?placeid=${encodeURIComponent(place.placeId)}`
+    : "";
   return `口コミ文を作成しました。上記の内容をコピーして投稿してください。
 
 【投稿前チェック】
 ・実際の体験に基づいていますか？
-・必要なら自分の言葉に直してください。
-
-Googleで口コミを投稿する：
-${url}`;
+・必要なら自分の言葉に直してください。${googleSection}`;
 }
 
 function formatAchievement({ totalCount, todayCount, monthCount }) {
