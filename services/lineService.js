@@ -3,7 +3,7 @@ import { createReview, reviseReview } from "./aiReviewService.js";
 import { addHistory, addReviewHistory, getUserReviewStats } from "./historyStore.js";
 import { buildBadgesMessage } from "./badgeService.js";
 import { buildFavoritesMessage } from "./favoriteService.js";
-import { buildMyPageMessage } from "./myPageService.js";
+import { buildMyPageFlex, buildMyPageMessage } from "./myPageService.js";
 import { buildRankingMessage } from "./rankingService.js";
 import { syncReviewMilestonesToHarness, tagReviewCreatedInHarness } from "./lineHarnessService.js";
 import { searchPlaces } from "./placesService.js";
@@ -136,7 +136,13 @@ async function handleGlobalCommand({ command, userId, replyToken }) {
 
   if (command === "mypage") {
     console.log("Calling myPageService:", { hasUserId: Boolean(userId) });
-    await reply(replyToken, await buildMyPageMessage(userId));
+    try {
+      const { altText, contents } = await buildMyPageFlex(userId);
+      await replyFlex(replyToken, altText, contents);
+    } catch (error) {
+      console.warn("MyPage flex failed, falling back to text:", error?.message);
+      await reply(replyToken, await buildMyPageMessage(userId));
+    }
     return;
   }
 
