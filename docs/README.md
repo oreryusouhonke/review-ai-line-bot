@@ -1,4 +1,4 @@
-# レビューAI公式LINE Bot
+# 口コミレビュー職人
 
 Google口コミ用の文章をLINE上で作成するMVPです。
 
@@ -20,7 +20,7 @@ Google口コミ用の文章をLINE上で作成するMVPです。
 ## セットアップ手順
 
 ```powershell
-cd "C:\AI_FACTORY_HOME\AI_FACTORY（AI運用工場）\【レビューAI公式LINE Bot】"
+cd "C:\AI_FACTORY_HOME\AI_FACTORY（AI運用工場）\【口コミレビュー職人】"
 npm install
 Copy-Item .env.example .env
 ```

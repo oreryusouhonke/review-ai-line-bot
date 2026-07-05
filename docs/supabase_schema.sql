@@ -11,6 +11,10 @@ create table if not exists public.users (
   last_review_generated_at timestamptz,
   rank text default '見習い職人',
   milestone_tags_synced jsonb default '[]'::jsonb,
+  plan text default 'free',
+  subscription_status text default 'free',
+  stripe_customer_id text,
+  stripe_subscription_id text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -24,6 +28,7 @@ create table if not exists public.review_histories (
   place_address text,
   review_text text,
   memo text,
+  type text default 'create',
   category_code text,
   category_label text,
   created_at timestamptz default now()
@@ -36,6 +41,11 @@ alter table public.users add column if not exists review_count integer default 0
 alter table public.users add column if not exists last_review_generated_at timestamptz;
 alter table public.users add column if not exists rank text default '見習い職人';
 alter table public.users add column if not exists milestone_tags_synced jsonb default '[]'::jsonb;
+alter table public.users add column if not exists plan text default 'free';
+alter table public.users add column if not exists subscription_status text default 'free';
+alter table public.users add column if not exists stripe_customer_id text;
+alter table public.users add column if not exists stripe_subscription_id text;
+alter table public.review_histories add column if not exists type text default 'create';
 alter table public.review_histories add column if not exists category_code text;
 alter table public.review_histories add column if not exists category_label text;
 
@@ -69,6 +79,15 @@ create index if not exists idx_users_review_count
 
 create index if not exists idx_users_last_review_generated_at
   on public.users(last_review_generated_at desc);
+
+create index if not exists idx_users_stripe_customer_id
+  on public.users(stripe_customer_id);
+
+create index if not exists idx_users_stripe_subscription_id
+  on public.users(stripe_subscription_id);
+
+create index if not exists idx_review_histories_type
+  on public.review_histories(type);
 
 create index if not exists idx_favorites_user_id
   on public.favorites(user_id);

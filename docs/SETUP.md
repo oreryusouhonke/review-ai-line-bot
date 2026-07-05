@@ -3,7 +3,7 @@
 ## 起動
 
 ```powershell
-cd "C:\AI_FACTORY_HOME\AI_FACTORY（AI運用工場）\【レビューAI公式LINE Bot】"
+cd "C:\AI_FACTORY_HOME\AI_FACTORY（AI運用工場）\【口コミレビュー職人】"
 npm install
 Copy-Item .env.example .env
 npm run dev

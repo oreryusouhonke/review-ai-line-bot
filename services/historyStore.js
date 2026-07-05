@@ -41,6 +41,7 @@ export async function addReviewHistory(entry) {
       place_address: entry.place?.address || entry.placeAddress || null,
       review_text: entry.review || entry.reviewText || null,
       memo: entry.experienceMemo || entry.memo || null,
+      type: entry.type || "create",
       category_code: entry.place?.categoryCode || entry.categoryCode || "other",
       category_label: entry.place?.categoryLabel || entry.categoryLabel || "その他",
     });

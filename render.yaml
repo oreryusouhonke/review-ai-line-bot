@@ -35,3 +35,21 @@ services:
         sync: false
       - key: LINE_HARNESS_WEBHOOK_SECRET
         sync: false
+      - key: PUBLIC_BASE_URL
+        value: https://review-ai-line-bot.onrender.com
+      - key: FREE_MONTHLY_QUOTA
+        value: "0"
+      - key: PAID_MONTHLY_QUOTA
+        value: "30"
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_SUCCESS_URL
+        value: https://review-ai-line-bot.onrender.com/billing/success
+      - key: STRIPE_CANCEL_URL
+        value: https://review-ai-line-bot.onrender.com/billing/cancel
+      - key: STRIPE_ALLOW_PROMOTION_CODES
+        value: "false"

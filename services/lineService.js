@@ -8,6 +8,7 @@ import { buildRankingMessage } from "./rankingService.js";
 import { syncReviewMilestonesToHarness, tagReviewCreatedInHarness } from "./lineHarnessService.js";
 import { searchPlaces } from "./placesService.js";
 import { recordReviewGenerated } from "./userService.js";
+import { checkGenerationAccess } from "./billingService.js";
 import {
   clearSession,
   getSession,
@@ -258,6 +259,11 @@ async function handleFeeling(userId, replyToken, text, session) {
     feeling: text,
   };
   const experienceMemo = buildExperienceMemo(reviewAnswers);
+  const billing = await checkGenerationAccess(userId);
+  if (!billing.allowed) {
+    await reply(replyToken, paywallMessage(billing));
+    return;
+  }
 
   await setGenerating(userId, true);
   await reply(replyToken, "3つの回答をもとに口コミ文を作成しています。完成したらこのトークに送ります。");
@@ -303,6 +309,11 @@ async function handleFeeling(userId, replyToken, text, session) {
 async function handleRevision(userId, replyToken, revisionRequest, session) {
   if (!session.lastReview || !session.experienceMemo || !session.selectedPlace) {
     await reply(replyToken, "修正できる口コミ文がありません。「リセット」して最初から作成してください。");
+    return;
+  }
+  const billing = await checkGenerationAccess(userId);
+  if (!billing.allowed) {
+    await reply(replyToken, paywallMessage(billing));
     return;
   }
 
@@ -527,6 +538,18 @@ function formatAchievement({ totalCount, todayCount, monthCount }) {
 ${remaining > 0 ? `あと${remaining}件で今月${nextGoal}件です。` : `今月${nextGoal}件に到達しました。`}
 
 ※これはGoogleへの投稿完了数ではなく、口コミ文の作成数です。`;
+}
+
+function paywallMessage({ quota, used, paymentUrl }) {
+  const paymentLine = paymentUrl
+    ? `\n\n口コミブースターはこちらから登録できます。\n${paymentUrl}`
+    : "\n\n現在、決済リンクの準備が完了していません。管理者にお知らせください。";
+
+  return `レビュー職人は、口コミブースター契約者向けの機能です。
+
+現在の利用状況：${used || 0} / ${quota}件
+
+口コミ文を作成するには、口コミブースターに登録してください。${paymentLine}`;
 }
 
 function friendlyError(error) {

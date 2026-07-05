@@ -15,7 +15,7 @@ https://<render-service-name>.onrender.com/webhook/line
 ローカルで以下が動いていることを確認します。
 
 ```powershell
-cd "C:\AI_FACTORY_HOME\AI_FACTORY（AI運用工場）\【レビューAI公式LINE Bot】"
+cd "C:\AI_FACTORY_HOME\AI_FACTORY（AI運用工場）\【口コミレビュー職人】"
 npm start
 ```
 
