@@ -217,21 +217,36 @@ async function handlePlaceQuery(userId, replyToken, query) {
   await reply(replyToken, `候補が見つかりました。\n\n${formatPlaces(places)}\n\n${placeSelectionGuide()}`);
 }
 
-async function handleRecruitBoard(userId, replyToken, region) {
-  let listings = [];
+async function handleRecruitBoard(userId, replyToken, keyword) {
+  let allListings = [];
   try {
-    listings = await fetchRecruitListings(region);
+    allListings = await fetchRecruitListings("");
   } catch (error) {
     console.error("recruit board fetch failed:", error);
     await reply(replyToken, "募集店ボードを読み込めませんでした。少し待ってからもう一度お試しください。");
     return;
   }
 
+  let listings = allListings;
+  if (keyword) {
+    // 店名一致（Webページの「LINEで口コミを作る」からの深リンク）なら直接開始
+    const nameMatches = allListings.filter(
+      (item) => item.storeName && (item.storeName.includes(keyword) || keyword.includes(item.storeName))
+    );
+    if (nameMatches.length === 1) {
+      await startRecruitReview(userId, replyToken, nameMatches[0]);
+      return;
+    }
+    // 地域での絞り込み
+    const regionMatches = allListings.filter((item) => (item.region || "").includes(keyword));
+    listings = regionMatches.length ? regionMatches : nameMatches;
+  }
+
   if (!listings.length) {
     await reply(
       replyToken,
-      region
-        ? `「${region}」の募集店は今のところありません。\n「募集店」と送ると全国の一覧を見られます。`
+      keyword
+        ? `「${keyword}」の募集店は今のところありません。\n「募集店」と送ると全国の一覧を見られます。`
         : "現在、募集店の掲載はありません。掲載が始まるとここに表示されます。"
     );
     return;
@@ -262,6 +277,10 @@ async function handleRecruitSelection(userId, replyToken, text, session) {
     return;
   }
 
+  await startRecruitReview(userId, replyToken, listing);
+}
+
+async function startRecruitReview(userId, replyToken, listing) {
   const selectedPlace = {
     placeId: listing.placeId || "",
     name: listing.storeName || "お店",
