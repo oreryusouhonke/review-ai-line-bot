@@ -510,23 +510,14 @@ function formatCopyOnlyReview(review) {
 
 function formatReviewMeta(review, place) {
   const url = `https://search.google.com/local/writereview?placeid=${encodeURIComponent(place.placeId)}`;
-  return `口コミ文を作成しました。
-
-直前のメッセージがコピー用の口コミ本文です。
-
-文字数：${review.length}文字
+  return `口コミ文を作成しました。上記の内容をコピーして投稿してください。
 
 【投稿前チェック】
 ・実際の体験に基づいていますか？
-・内容に間違いはありませんか？
 ・必要なら自分の言葉に直してください。
 
 Googleで口コミを投稿する：
-${url}
-
-修正したい場合は
-修正：もっとカジュアルに
-のように送ってください。`;
+${url}`;
 }
 
 function formatAchievement({ totalCount, todayCount, monthCount }) {
