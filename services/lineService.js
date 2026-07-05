@@ -167,7 +167,7 @@ async function handleGlobalCommand({ command, userId, replyToken }) {
   }
 
   if (command === "help") {
-    await reply(replyToken, helpMessage());
+    await replyFlex(replyToken, "レビュー職人の使い方", buildManualCarousel());
     return;
   }
 
@@ -363,6 +363,17 @@ async function reply(replyToken, text) {
   await client.replyMessage(replyToken, { type: "text", text });
 }
 
+async function replyFlex(replyToken, altText, contents) {
+  if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+    throw new Error("LINE_CHANNEL_ACCESS_TOKEN is not set");
+  }
+
+  const client = new Client({
+    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+  });
+  await client.replyMessage(replyToken, { type: "flex", altText, contents });
+}
+
 async function push(userId, text) {
   if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
     throw new Error("LINE_CHANNEL_ACCESS_TOKEN is not set");
@@ -472,6 +483,104 @@ function placeSelectionGuide() {
 
 function startMessage() {
   return START_MESSAGE;
+}
+
+function buildManualCarousel() {
+  const steps = [
+    {
+      step: "STEP 1",
+      title: "お店を探す",
+      body: "「地域名」と「店名」を送ってください。\n\n例：\n上野　〇〇商店\n銀座　〇〇医院\n\n飲食店以外でも使えます。",
+      action: { type: "message", label: "開始する", text: "開始" },
+    },
+    {
+      step: "STEP 2",
+      title: "お店を選ぶ",
+      body: "候補のお店が最大5件表示されます。\n\n作りたいお店の「番号」を送ってください。\n\n例：1",
+    },
+    {
+      step: "STEP 3",
+      title: "体験を教える",
+      body: "質問に沿って、実際の体験を送ってください。\n\n・何をしに行った？\n・良かったところは？\n・どう感じた？\n\n短いメモでOKです。",
+    },
+    {
+      step: "STEP 4",
+      title: "口コミ文が完成",
+      body: "AIが口コミ文を作成します。\n\n本文をコピーして、届いたリンクからGoogleに投稿してください。\n\n※自動投稿はしません。投稿前に内容をご確認ください。",
+    },
+    {
+      step: "STEP 5",
+      title: "修正もできる",
+      body: "できた文章を直したいときは\n\n「修正：もっとカジュアルに」\n「修正：短くして」\n\nのように送ると作り直せます。",
+    },
+    {
+      step: "便利機能",
+      title: "コマンド一覧",
+      body: "マイページ：あなたの記録\n履歴：作った口コミ文\nランキング：作成数ランキング\nバッジ：獲得バッジ\nお気に入り：お気に入りのお店\nリセット：最初からやり直す",
+      action: { type: "message", label: "マイページを見る", text: "マイページ" },
+    },
+  ];
+
+  return {
+    type: "carousel",
+    contents: steps.map((item) => ({
+      type: "bubble",
+      size: "kilo",
+      header: {
+        type: "box",
+        layout: "vertical",
+        backgroundColor: "#f97316",
+        paddingAll: "12px",
+        contents: [
+          {
+            type: "text",
+            text: item.step,
+            color: "#ffe9d6",
+            size: "xs",
+            weight: "bold",
+          },
+          {
+            type: "text",
+            text: item.title,
+            color: "#ffffff",
+            size: "lg",
+            weight: "bold",
+          },
+        ],
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "14px",
+        contents: [
+          {
+            type: "text",
+            text: item.body,
+            wrap: true,
+            size: "sm",
+            color: "#333333",
+          },
+        ],
+      },
+      ...(item.action
+        ? {
+            footer: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "button",
+                  style: "primary",
+                  color: "#f97316",
+                  height: "sm",
+                  action: item.action,
+                },
+              ],
+            },
+          }
+        : {}),
+    })),
+  };
 }
 
 function helpMessage() {
