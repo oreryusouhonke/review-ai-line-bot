@@ -277,9 +277,9 @@ function emptyCard(title, body) {
 function menuButton(label, text) {
   return {
     type: "button",
-    style: "secondary",
+    style: "primary",
     height: "sm",
-    color: COLLECTION_STYLE.panel,
+    color: COLLECTION_STYLE.orange,
     flex: 1,
     action: { type: "message", label, text },
   };
