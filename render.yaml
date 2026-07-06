@@ -38,6 +38,7 @@ services:
       - key: PUBLIC_BASE_URL
         value: https://review-ai-line-bot.onrender.com
       - key: FREE_MONTHLY_QUOTA
+        # 0 means free unlimited. Review Shokunin remains free for end users.
         value: "0"
       - key: PAID_MONTHLY_QUOTA
         value: "30"

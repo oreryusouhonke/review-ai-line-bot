@@ -4,6 +4,7 @@ import { getOrCreateUser } from "./userService.js";
 
 const FREE_MONTHLY_QUOTA = Number(process.env.FREE_MONTHLY_QUOTA || 0);
 const PAID_MONTHLY_QUOTA = Number(process.env.PAID_MONTHLY_QUOTA || 30);
+const FREE_QUOTA_UNLIMITED = FREE_MONTHLY_QUOTA <= 0;
 
 let cachedStripe = null;
 
@@ -16,6 +17,7 @@ export function getStripeBillingStatus() {
     configured: isStripeBillingConfigured(),
     webhookConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
     freeMonthlyQuota: FREE_MONTHLY_QUOTA,
+    freeQuotaUnlimited: FREE_QUOTA_UNLIMITED,
     paidMonthlyQuota: PAID_MONTHLY_QUOTA,
   };
 }
@@ -25,18 +27,19 @@ export async function checkGenerationAccess(lineUserId) {
     return { allowed: true, reason: "billing_not_enforced" };
   }
 
+  if (FREE_QUOTA_UNLIMITED) {
+    return {
+      allowed: true,
+      paid: false,
+      quota: null,
+      used: await getMonthlyGeneratedCount(lineUserId),
+      remaining: null,
+      monthKey: currentMonthKey(),
+      reason: "free_unlimited",
+    };
+  }
+
   if (!isStripeBillingConfigured()) {
-    if (FREE_MONTHLY_QUOTA <= 0) {
-      return {
-        allowed: false,
-        paid: false,
-        quota: FREE_MONTHLY_QUOTA,
-        used: await getMonthlyGeneratedCount(lineUserId),
-        remaining: 0,
-        reason: "billing_not_configured",
-        paymentUrl: "",
-      };
-    }
     const monthCount = await getMonthlyGeneratedCount(lineUserId);
     if (monthCount < FREE_MONTHLY_QUOTA) {
       return {
