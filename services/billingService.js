@@ -25,9 +25,39 @@ export async function checkGenerationAccess(lineUserId) {
     return { allowed: true, reason: "billing_not_enforced" };
   }
 
-  // 課金なし運用: Stripeが設定されていない場合は回数制限をかけない
   if (!isStripeBillingConfigured()) {
-    return { allowed: true, reason: "billing_disabled" };
+    if (FREE_MONTHLY_QUOTA <= 0) {
+      return {
+        allowed: false,
+        paid: false,
+        quota: FREE_MONTHLY_QUOTA,
+        used: await getMonthlyGeneratedCount(lineUserId),
+        remaining: 0,
+        reason: "billing_not_configured",
+        paymentUrl: "",
+      };
+    }
+    const monthCount = await getMonthlyGeneratedCount(lineUserId);
+    if (monthCount < FREE_MONTHLY_QUOTA) {
+      return {
+        allowed: true,
+        paid: false,
+        quota: FREE_MONTHLY_QUOTA,
+        used: monthCount,
+        remaining: FREE_MONTHLY_QUOTA - monthCount,
+        monthKey: currentMonthKey(),
+      };
+    }
+    return {
+      allowed: false,
+      paid: false,
+      quota: FREE_MONTHLY_QUOTA,
+      used: monthCount,
+      remaining: 0,
+      monthKey: currentMonthKey(),
+      reason: "free_quota_exceeded",
+      paymentUrl: "",
+    };
   }
 
   const user = await getOrCreateUser({ lineUserId });

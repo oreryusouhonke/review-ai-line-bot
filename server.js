@@ -23,7 +23,14 @@ app.get("/", (_req, res) => {
   });
 });
 
-app.get("/health", (_req, res) => {
+app.get("/health", (req, res) => {
+  const detailToken = process.env.HEALTH_DETAIL_TOKEN;
+  const requestedToken = req.get("x-health-token") || req.query.token;
+  if (!detailToken || requestedToken !== detailToken) {
+    res.json({ ok: true });
+    return;
+  }
+
   res.json({
     ok: true,
     missingEnv: [
