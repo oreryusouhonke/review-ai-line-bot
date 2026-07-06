@@ -1,14 +1,25 @@
 const BOOSTER_BASE_URL = (process.env.BOOSTER_BASE_URL || "https://kuchikomi-booster.vercel.app").replace(/\/+$/, "");
+const HIDDEN_RECRUIT_LISTING_KEYWORDS = ["おかしのたいよう"];
+
+function normalizeText(value = "") {
+  return String(value).replace(/\s+/g, "").toLowerCase();
+}
+
+function isHiddenRecruitListing(listing) {
+  const targetText = normalizeText(`${listing.storeName || ""} ${listing.description || ""}`);
+  return HIDDEN_RECRUIT_LISTING_KEYWORDS.some((keyword) => targetText.includes(normalizeText(keyword)));
+}
 
 export async function fetchRecruitListings(region = "") {
   const url = new URL(`${BOOSTER_BASE_URL}/api/recruit/listings`);
   if (region) url.searchParams.set("region", region);
-  url.searchParams.set("limit", "10");
+  url.searchParams.set("limit", "20");
 
   const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw new Error(`recruit listings fetch failed: ${response.status}`);
   const data = await response.json();
-  return Array.isArray(data.listings) ? data.listings : [];
+  const listings = Array.isArray(data.listings) ? data.listings : [];
+  return listings.filter((listing) => !isHiddenRecruitListing(listing));
 }
 
 export function buildRecruitCarousel(listings) {
