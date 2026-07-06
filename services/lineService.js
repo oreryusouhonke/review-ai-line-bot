@@ -1,7 +1,7 @@
 import { Client } from "@line/bot-sdk";
 import { createReview, reviseReview } from "./aiReviewService.js";
 import { addHistory, addReviewHistory, getUserReviewStats } from "./historyStore.js";
-import { buildBadgesMessage } from "./badgeService.js";
+import { buildBadgesFlex, buildBadgesMessage } from "./badgeService.js";
 import { buildFavoritesMessage } from "./favoriteService.js";
 import { buildMyPageFlex, buildMyPageMessage } from "./myPageService.js";
 import { buildRankingMessage } from "./rankingService.js";
@@ -181,7 +181,13 @@ async function handleGlobalCommand({ command, userId, replyToken }) {
   }
 
   if (command === "badge") {
-    await reply(replyToken, await buildBadgesMessage(userId));
+    try {
+      const { altText, contents } = await buildBadgesFlex(userId);
+      await replyFlex(replyToken, altText, contents);
+    } catch (error) {
+      console.warn("Badge flex failed, falling back to text:", error?.message);
+      await reply(replyToken, await buildBadgesMessage(userId));
+    }
     return;
   }
 
