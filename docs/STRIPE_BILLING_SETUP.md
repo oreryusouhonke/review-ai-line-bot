@@ -1,38 +1,18 @@
-# Stripe課金設定
+# Stripe課金設定メモ
 
-レビュー職人LINE Botの口コミ文作成に月間上限を付け、上限超過時にStripe Checkoutへ案内する設定です。
+口コミレビュー職人は、現在はエンドユーザーが無料で利用できる公式LINEツールです。
+そのため、通常運用では口コミ文作成の途中で決済案内を出しません。
 
-## 料金ルール
+## 現在の運用ルール
 
-- 無料枠: `FREE_MONTHLY_QUOTA` 件/月。初期値は0件。
-- 有料枠: `PAID_MONTHLY_QUOTA` 件/月。初期値は30件。
-- カウント対象: `review_histories.type = 'create'` の新規口コミ文作成。
-- 修正生成も上限チェック対象です。ただしカウントは新規作成数を基準にします。
-- レビュー職人は口コミブースター契約者向け機能として扱い、未契約者は1回目からStripe Checkoutへ案内します。
+- レビュー職人本体: 無料
+- `FREE_MONTHLY_QUOTA=0`: 無料で制限なし
+- `FREE_MONTHLY_QUOTA=1` 以上: 月ごとの無料作成数として扱う
+- `PAID_MONTHLY_QUOTA`: 将来、有料枠を使う場合の月間作成数
+- カウント対象: `review_histories.type = 'create'` の口コミ文作成
 
-## Stripeで作るもの
-
-1. 商品を作成する。
-2. 月額のPriceを作成する。
-3. Price IDを控える。例: `price_...`
-4. Webhook endpointを作成する。
-
-Webhook URL:
-
-```text
-https://review-ai-line-bot.onrender.com/webhook/stripe
-```
-
-受けるイベント:
-
-```text
-checkout.session.completed
-customer.subscription.created
-customer.subscription.updated
-customer.subscription.deleted
-```
-
-Webhook signing secretを控える。例: `whsec_...`
+`FREE_MONTHLY_QUOTA=0` は「0件まで」ではなく「無料で制限なし」です。
+Renderや環境変数でこの値を0にしておけば、LINE上で「契約者向け」「決済リンク未準備」と表示されず、通常どおり口コミ文作成まで進みます。
 
 ## Render環境変数
 
@@ -40,6 +20,11 @@ Webhook signing secretを控える。例: `whsec_...`
 PUBLIC_BASE_URL=https://review-ai-line-bot.onrender.com
 FREE_MONTHLY_QUOTA=0
 PAID_MONTHLY_QUOTA=30
+```
+
+Stripe課金を将来有効にする場合のみ、以下を追加します。
+
+```text
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_PRICE_ID=price_...
 STRIPE_WEBHOOK_SECRET=whsec_...
@@ -48,19 +33,24 @@ STRIPE_CANCEL_URL=https://review-ai-line-bot.onrender.com/billing/cancel
 STRIPE_ALLOW_PROMOTION_CODES=false
 ```
 
-## Supabase反映
+## Stripeを使う場合のWebhook
 
-`docs/supabase_schema.sql` をSupabase SQL Editorで再実行します。
-既存テーブルへ `plan`, `subscription_status`, `stripe_customer_id`, `stripe_subscription_id`, `review_histories.type` が追加されます。
+Webhook URL:
 
-## 動作
+```text
+https://review-ai-line-bot.onrender.com/webhook/stripe
+```
 
-1. 未契約ユーザーが口コミ文を作ろうとする。
-2. BotがStripe Checkout URLをLINEで返す。
-3. Stripe決済完了後、Webhookで `users.plan = 'paid'`, `users.subscription_status = 'active'` に更新する。
-4. 以後、有料枠まで口コミ文を作成できる。
+受け取るイベント:
+
+```text
+checkout.session.completed
+customer.subscription.created
+customer.subscription.updated
+customer.subscription.deleted
+```
 
 ## 注意
 
-Stripeアカウントが審査中の場合、本番決済や入金が一時制限されることがあります。
-その場合でも、テストモードのキーとPrice IDで動作確認は可能です。
+レビュー職人を無料ツールとして公開する間は、`FREE_MONTHLY_QUOTA=0` のままにします。
+誤って `FREE_MONTHLY_QUOTA` を小さい数値にすると、その回数を超えた利用者に決済案内が表示されます。

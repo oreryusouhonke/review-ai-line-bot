@@ -32,7 +32,7 @@ export async function checkGenerationAccess(lineUserId) {
       allowed: true,
       paid: false,
       quota: null,
-      used: await getMonthlyGeneratedCount(lineUserId),
+      used: null,
       remaining: null,
       monthKey: currentMonthKey(),
       reason: "free_unlimited",
