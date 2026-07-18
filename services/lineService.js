@@ -47,6 +47,8 @@ const START_MESSAGE = `レビューAIです😊
 
 飲食店以外でも使えます。`;
 
+let cachedLineClient = null;
+
 export async function handleTextMessage(event) {
   const userId = event.source?.userId;
   const replyToken = event.replyToken;
@@ -264,8 +266,10 @@ async function handleRecruitBoard(userId, replyToken, keyword) {
     updatedAt: new Date().toISOString(),
   });
 
-  await push(userId, recruitGuideText());
-  await replyFlex(replyToken, "募集店ボード", buildRecruitCarousel(listings));
+  await replyMessages(replyToken, [
+    { type: "text", text: recruitGuideText() },
+    { type: "flex", altText: "募集店ボード", contents: buildRecruitCarousel(listings) },
+  ]);
 }
 
 async function handleRecruitSelection(userId, replyToken, text, session) {
@@ -374,7 +378,7 @@ async function handleFeeling(userId, replyToken, text, session) {
   }
 
   await setGenerating(userId, true);
-  await reply(replyToken, "3つの回答をもとに口コミ文を作成しています。完成したらこのトークに送ります。");
+  await showLoadingAnimation(userId);
 
   try {
     const review = await createReview({
@@ -406,7 +410,7 @@ async function handleFeeling(userId, replyToken, text, session) {
     const stats = await getUserReviewStats(userId);
     tagReviewCreatedInHarness(userId);
     syncReviewMilestonesToHarness(userId, userRecord);
-    await pushReviewMessages(userId, review, session.selectedPlace, stats);
+    await replyReviewMessages(replyToken, userId, review, session.selectedPlace, stats);
   } catch (error) {
     console.error("review generation failed:", error);
     await setGenerating(userId, false);
@@ -426,7 +430,7 @@ async function handleRevision(userId, replyToken, revisionRequest, session) {
   }
 
   await setGenerating(userId, true);
-  await reply(replyToken, "口コミ文を修正しています。完成したらこのトークに送ります。");
+  await showLoadingAnimation(userId);
 
   try {
     const review = await reviseReview({
@@ -452,7 +456,7 @@ async function handleRevision(userId, replyToken, revisionRequest, session) {
     });
 
     tagReviewCreatedInHarness(userId);
-    await pushReviewMessages(userId, review, session.selectedPlace);
+    await replyReviewMessages(replyToken, userId, review, session.selectedPlace);
   } catch (error) {
     console.error("review revision failed:", error);
     await setGenerating(userId, false);
@@ -461,43 +465,68 @@ async function handleRevision(userId, replyToken, revisionRequest, session) {
 }
 
 async function reply(replyToken, text) {
-  if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
-    throw new Error("LINE_CHANNEL_ACCESS_TOKEN is not set");
-  }
-
-  const client = new Client({
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-  });
-  await client.replyMessage(replyToken, { type: "text", text });
+  await replyMessages(replyToken, [{ type: "text", text }]);
 }
 
 async function replyFlex(replyToken, altText, contents) {
-  if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
-    throw new Error("LINE_CHANNEL_ACCESS_TOKEN is not set");
-  }
+  await replyMessages(replyToken, [{ type: "flex", altText, contents }]);
+}
 
-  const client = new Client({
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-  });
-  await client.replyMessage(replyToken, { type: "flex", altText, contents });
+async function replyMessages(replyToken, messages) {
+  await getLineClient().replyMessage(replyToken, messages);
 }
 
 async function push(userId, text) {
+  await getLineClient().pushMessage(userId, { type: "text", text });
+}
+
+async function replyReviewMessages(replyToken, userId, review, place, stats = null) {
+  const meta = stats
+    ? `${formatReviewMeta(review, place)}\n\n${formatAchievement(stats)}`
+    : formatReviewMeta(review, place);
+  try {
+    await replyMessages(replyToken, [
+      { type: "text", text: review },
+      { type: "text", text: meta },
+    ]);
+  } catch (error) {
+    console.warn("LINE review reply failed; falling back to push:", error);
+    await push(userId, review);
+    await push(userId, meta);
+  }
+}
+
+async function showLoadingAnimation(userId) {
+  if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+    console.warn("LINE loading animation skipped: LINE_CHANNEL_ACCESS_TOKEN is not set");
+    return;
+  }
+  try {
+    const response = await fetch("https://api.line.me/v2/bot/chat/loading/start", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ chatId: userId, loadingSeconds: 30 }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) throw new Error(`LINE loading animation failed: ${response.status}`);
+  } catch (error) {
+    console.warn("LINE loading animation failed; continuing generation:", error);
+  }
+}
+
+function getLineClient() {
   if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
     throw new Error("LINE_CHANNEL_ACCESS_TOKEN is not set");
   }
-
-  const client = new Client({
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
-  });
-  await client.pushMessage(userId, { type: "text", text });
-}
-
-async function pushReviewMessages(userId, review, place, stats = null) {
-  await push(userId, formatCopyOnlyReview(review));
-  await push(userId, stats
-    ? `${formatReviewMeta(review, place)}\n\n${formatAchievement(stats)}`
-    : formatReviewMeta(review, place));
+  if (!cachedLineClient) {
+    cachedLineClient = new Client({
+      channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+    });
+  }
+  return cachedLineClient;
 }
 
 function buildExperienceMemo({ purpose = "", impression = "", feeling = "" }) {
@@ -715,25 +744,6 @@ function buildManualCarousel() {
   };
 }
 
-function helpMessage() {
-  return `レビュー職人｜口コミ半自動化AIです。
-
-できること：
-Google口コミ用の文章を、あなたの実体験メモから作ります。
-
-使い方：
-1. 「開始」と送る
-2. 店名と地域を送る
-3. 候補番号を選ぶ
-4. 3つの質問に答える
-5. 必要なら「修正：もっと自然に」と送る
-
-コマンド：
-マイページ / 履歴 / ランキング / お気に入り / バッジ / ヘルプ / リセット
-
-自動投稿はしません。投稿前に必ずご本人が確認してください。`;
-}
-
 function formatPlaces(places) {
   return places
     .map((place, index) => {
@@ -743,10 +753,6 @@ function formatPlaces(places) {
       return `${index + 1}. ${place.name}\n${place.address}\n${rating} / ${count}${mapUrl}`;
     })
     .join("\n\n");
-}
-
-function formatCopyOnlyReview(review) {
-  return review;
 }
 
 function formatReviewMeta(review, place) {
@@ -784,6 +790,7 @@ function paywallMessage({ quota, used, paymentUrl }) {
 }
 
 function friendlyError(error) {
+  if (String(error?.message || "").includes("利用状況を確認できませんでした")) return error.message;
   if (String(error?.message || "").includes("API key")) return "APIキーの設定を確認してください。";
   if (String(error?.message || "").includes("not set")) return "必要な環境変数が未設定です。";
   return "処理に失敗しました。";

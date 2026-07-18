@@ -41,7 +41,7 @@ async function generateReview({ place, experienceMemo, currentReview = "", instr
   });
 
   if (countReviewChars(firstText) >= MIN_REVIEW_CHARS) {
-    return firstText;
+    return normalizeReviewLength(firstText);
   }
 
   console.log("Generated review was too short. Retrying with length guard:", {
@@ -60,15 +60,42 @@ async function generateReview({ place, experienceMemo, currentReview = "", instr
 良かった点の理由、利用時に感じたこと、全体の感想を自然につなぎ、2〜4段落で読みやすくしてください。`,
   });
 
-  return retryText;
+  const retryChars = countReviewChars(retryText);
+  if (retryChars >= MIN_REVIEW_CHARS) {
+    return normalizeReviewLength(retryText);
+  }
+
+  const bestText = retryChars > countReviewChars(firstText) ? retryText : firstText;
+  if (!bestText.trim()) throw new Error("口コミ文を生成できませんでした");
+  console.warn("Generated review remained shorter than the target after retry:", {
+    chars: countReviewChars(bestText),
+    targetChars: TARGET_REVIEW_CHARS,
+  });
+  return normalizeReviewLength(bestText);
 }
 
 async function generateText(model, { place, experienceMemo, currentReview, instruction }) {
   const prompt = buildPrompt({ place, experienceMemo, currentReview, instruction });
   const result = await model.generateContent(prompt);
   const text = result.response.text().trim();
+  const normalized = text.replace(/^["「]|["」]$/g, "").trim();
+  if (!normalized) throw new Error("口コミ文を生成できませんでした");
+  return normalized;
+}
 
-  return text.replace(/^["「]|["」]$/g, "").trim();
+export function normalizeReviewLength(text) {
+  if (countReviewChars(text) <= MAX_REVIEW_CHARS) return text.trim();
+
+  let nonWhitespaceCount = 0;
+  let endIndex = text.length;
+  for (let index = 0; index < text.length; index += 1) {
+    if (!/\s/.test(text[index])) nonWhitespaceCount += 1;
+    if (nonWhitespaceCount >= MAX_REVIEW_CHARS) {
+      endIndex = index + 1;
+      break;
+    }
+  }
+  return text.slice(0, endIndex).trim();
 }
 
 function buildPrompt({ place, experienceMemo, currentReview, instruction }) {
