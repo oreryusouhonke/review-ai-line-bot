@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { getOrCreateUser } from "./userService.js";
+import { getJstMonthRange } from "./jstDateRange.js";
 
 const FREE_MONTHLY_QUOTA = Number(process.env.FREE_MONTHLY_QUOTA || 0);
 const PAID_MONTHLY_QUOTA = Number(process.env.PAID_MONTHLY_QUOTA || 30);
@@ -157,7 +158,7 @@ export async function applySubscriptionDeleted(subscription) {
 
 async function getMonthlyGeneratedCount(lineUserId) {
   const supabase = getSupabaseClient();
-  const { monthStart, nextMonthStart } = monthRange();
+  const { monthStart, nextMonthStart } = getJstMonthRange();
   const { count, error } = await supabase
     .from("review_histories")
     .select("id", { count: "exact", head: true })
@@ -167,8 +168,8 @@ async function getMonthlyGeneratedCount(lineUserId) {
     .lt("created_at", nextMonthStart);
 
   if (error) {
-    console.warn("Billing monthly count failed:", safeSupabaseError(error));
-    return 0;
+    console.error("Billing monthly count failed:", safeSupabaseError(error));
+    throw new Error("利用状況を確認できませんでした。少し待ってからもう一度お試しください。");
   }
 
   return count || 0;
@@ -211,14 +212,6 @@ function currentMonthKey() {
     year: "numeric",
     month: "2-digit",
   }).format(now);
-}
-
-function monthRange() {
-  const now = new Date();
-  return {
-    monthStart: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString(),
-    nextMonthStart: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString(),
-  };
 }
 
 function stringOrNull(value) {

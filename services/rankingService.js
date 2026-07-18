@@ -5,7 +5,7 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 export async function buildRankingMessage(lineUserId) {
   const ranking = await getMonthlyRanking({ lineUserId, limit: 10 });
   const topLines = ranking.top.length
-    ? ranking.top.map((item, index) => `${MEDALS[index] || `${item.rank}位`}　${item.rank}位　${item.displayName}　${item.count}件`).join("\n")
+    ? formatRankingLines(ranking.top)
     : "まだランキング対象の口コミ文作成がありません。";
 
   const user = ranking.userRank;
@@ -29,4 +29,11 @@ ${nextLine}
 
 ※このランキングはGoogleへの投稿数ではなく、レビュー職人で作成した口コミ文の件数です。
 ※実際に利用した体験だけをもとに口コミ文を作成してください。`;
+}
+
+export function formatRankingLines(items) {
+  return items.map((item, index) => {
+    const medal = MEDALS[index] ? `${MEDALS[index]}　` : "";
+    return `${medal}${item.rank}位　${item.displayName}　${item.count}件`;
+  }).join("\n");
 }

@@ -65,6 +65,20 @@ create table if not exists public.user_badges (
   earned_at timestamptz default now()
 );
 
+create table if not exists public.sessions (
+  line_user_id text primary key,
+  session jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.processed_webhook_events (
+  event_id text primary key,
+  processed_at timestamptz not null default now()
+);
+
+create index if not exists idx_processed_webhook_events_processed_at
+  on public.processed_webhook_events(processed_at);
+
 create index if not exists idx_review_histories_line_user_id_created_at
   on public.review_histories(line_user_id, created_at desc);
 

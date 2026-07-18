@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getSupabaseClient, isSupabaseConfigured } from "./supabaseClient.js";
 import { getOrCreateUser } from "./userService.js";
+import { getJstDayRange, getJstMonthRange } from "./jstDateRange.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, "../data");
@@ -23,9 +24,8 @@ export async function addHistory(entry) {
 }
 
 export async function addReviewHistory(entry) {
-  await addHistory(entry);
-
   if (!isSupabaseConfigured()) {
+    await addHistory(entry);
     return { savedToSupabase: false, source: "json" };
   }
 
@@ -47,9 +47,15 @@ export async function addReviewHistory(entry) {
     });
 
     if (error) throw error;
+    try {
+      await addHistory(entry);
+    } catch (jsonError) {
+      console.error("JSON review history mirror save failed:", jsonError);
+    }
     return { savedToSupabase: true, source: "supabase" };
   } catch (error) {
     console.error("Supabase review history save failed:", safeSupabaseError(error));
+    await addHistory(entry);
     return { savedToSupabase: false, source: "json", error: true };
   }
 }
@@ -81,7 +87,8 @@ export async function getMonthlyRanking({ lineUserId, limit = 10 } = {}) {
 
 async function getSupabaseReviewStats(lineUserId) {
   const supabase = getSupabaseClient();
-  const { monthStart, nextMonthStart } = monthRange();
+  const { monthStart, nextMonthStart } = getJstMonthRange();
+  const { dayStart, nextDayStart } = getJstDayRange();
 
   const totalResult = await supabase
     .from("review_histories")
@@ -97,6 +104,14 @@ async function getSupabaseReviewStats(lineUserId) {
     .lt("created_at", nextMonthStart);
   if (monthResult.error) throw monthResult.error;
 
+  const todayResult = await supabase
+    .from("review_histories")
+    .select("id", { count: "exact", head: true })
+    .eq("line_user_id", lineUserId)
+    .gte("created_at", dayStart)
+    .lt("created_at", nextDayStart);
+  if (todayResult.error) throw todayResult.error;
+
   const categoryResult = await supabase
     .from("review_histories")
     .select("category_code")
@@ -105,7 +120,7 @@ async function getSupabaseReviewStats(lineUserId) {
 
   return {
     totalCount: totalResult.count || 0,
-    todayCount: 0,
+    todayCount: todayResult.count || 0,
     monthCount: monthResult.count || 0,
     categoryCounts: countCategories(categoryResult.data || []),
     source: "supabase",
@@ -114,7 +129,7 @@ async function getSupabaseReviewStats(lineUserId) {
 
 async function getSupabaseMonthlyRanking({ lineUserId, limit }) {
   const supabase = getSupabaseClient();
-  const { monthStart, nextMonthStart } = monthRange();
+  const { monthStart, nextMonthStart } = getJstMonthRange();
   const { data, error } = await supabase
     .from("review_histories")
     .select("line_user_id, users(nickname, public_display_name, display_name, ranking_enabled)")
@@ -204,14 +219,6 @@ async function ensureJsonFile(filePath, fallback) {
 
 async function writeJson(filePath, data) {
   await fs.writeFile(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
-}
-
-function monthRange() {
-  const now = new Date();
-  return {
-    monthStart: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString(),
-    nextMonthStart: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)).toISOString(),
-  };
 }
 
 function toDateKey(date) {

@@ -1,5 +1,8 @@
 const BOOSTER_BASE_URL = (process.env.BOOSTER_BASE_URL || "https://kuchikomi-booster.vercel.app").replace(/\/+$/, "");
-const HIDDEN_RECRUIT_LISTING_KEYWORDS = ["おかしのたいよう"];
+const HIDDEN_RECRUIT_LISTING_KEYWORDS = (process.env.RECRUIT_HIDDEN_KEYWORDS || "")
+  .split(",")
+  .map((keyword) => keyword.trim())
+  .filter(Boolean);
 
 function normalizeText(value = "") {
   return String(value).replace(/\s+/g, "").toLowerCase();

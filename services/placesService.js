@@ -35,6 +35,7 @@ export async function searchPlaces(query) {
       regionCode: "JP",
       maxResultCount: 5,
     }),
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!response.ok) {
