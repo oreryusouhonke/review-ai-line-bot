@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const TARGET_REVIEW_CHARS = 300;
-const MIN_REVIEW_CHARS = 240;
+const MIN_REVIEW_CHARS = 250;
 const MAX_REVIEW_CHARS = 420;
 
 export async function createReview({ place, experienceMemo }) {
