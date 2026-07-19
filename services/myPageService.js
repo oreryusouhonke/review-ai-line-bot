@@ -184,13 +184,14 @@ export async function buildMyPageFlex(lineUserId) {
         {
           type: "box",
           layout: "horizontal",
-          spacing: "xs",
-          contents: [
-            menuButton("履歴", "履歴"),
-            menuButton("ランキング", "ランキング"),
-            menuButton("バッジ", "バッジ"),
-            menuButton("お気に入り", "お気に入り"),
-          ],
+          spacing: "sm",
+          contents: [menuButton("履歴", "履歴"), menuButton("ランキング", "ランキング")],
+        },
+        {
+          type: "box",
+          layout: "horizontal",
+          spacing: "sm",
+          contents: [menuButton("バッジ", "バッジ"), menuButton("お気に入り", "お気に入り")],
         },
         {
           type: "text",
